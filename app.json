@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "nari",
+    "name": "Nari Samman",
     "slug": "nari",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -10,7 +10,7 @@
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#1A1208"
     },
     "ios": {
       "supportsTablet": true
@@ -20,10 +20,16 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "package": "com.kalyanag.narisamman"
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "80cd28ce-78cc-4964-bfcb-73450401b373"
+      }
     }
   }
 }
