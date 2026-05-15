@@ -1,11 +1,14 @@
 /**
- * Returns the correct Image source prop for both:
- *  - Local require() assets  (object with numeric id)
- *  - Remote URI strings      (https://...)
- *  - null / undefined        (returns null so caller can show fallback)
+ * Returns a safe React Native <Image /> source for:
+ * - local require() assets
+ * - remote/local URI strings
+ * - already-shaped { uri } objects
+ * - null / undefined fallback cases
  */
 export function imgSrc(image) {
   if (!image) return null;
+  if (typeof image === 'number') return image;
   if (typeof image === 'string') return { uri: image };
-  return image; // already a require() module reference
+  if (typeof image === 'object' && image.uri) return image;
+  return image;
 }
