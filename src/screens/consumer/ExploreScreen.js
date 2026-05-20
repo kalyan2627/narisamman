@@ -1,11 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View, StyleSheet,
-  TouchableOpacity, ScrollView, Dimensions, Image } from
-'react-native';
+  TouchableOpacity, ScrollView, Dimensions, Image
+} from
+  'react-native';
 import { COLORS, SHADOWS } from '../../theme/colors';
 import useStore from '../../store/useStore';
-import { imgSrc } from '../../utils/imageSource';import Text from "../../autoTranslation/AutoText";import TextInput from "../../autoTranslation/AutoTextInput";import useAppLanguage from "../../autoTranslation/useAppLanguage";import { getAutoCategoryLabel, getAutoCategoryTag, getAutoSortLabel, CATEGORY_LABELS, SORT_LABELS } from "../../autoTranslation/staticLabels";
+import { imgSrc } from '../../utils/imageSource'; import Text from "../../autoTranslation/AutoText"; import TextInput from "../../autoTranslation/AutoTextInput"; import useAppLanguage from "../../autoTranslation/useAppLanguage"; import { getAutoCategoryLabel, getAutoCategoryTag, getAutoSortLabel, CATEGORY_LABELS, SORT_LABELS } from "../../autoTranslation/staticLabels";
 
 
 
@@ -30,12 +31,12 @@ function ProductCard({ product, navigation, isWishlisted, onWishlist }) {
       style={styles.card}
       onPress={() => navigation.navigate('ProductDetail', { product })}
       activeOpacity={0.9}>
-      
+
       <View style={styles.imgBox}>
         {imgSrc(product.image) ?
-        <Image source={imgSrc(product.image)} style={styles.img} resizeMode="cover" /> :
+          <Image source={imgSrc(product.image)} style={styles.img} resizeMode="cover" /> :
 
-        <Text style={styles.imgEmoji}>{product.emoji}</Text>
+          <Text style={styles.imgEmoji}>{product.emoji}</Text>
         }
         {product.badge && <View style={styles.badge}><Text style={styles.badgeText}>{product.badge}</Text></View>}
         <TouchableOpacity style={styles.heartBtn} onPress={() => onWishlist(product)}>
@@ -63,7 +64,15 @@ function ProductCard({ product, navigation, isWishlisted, onWishlist }) {
 }
 
 export default function ExploreScreen({ navigation }) {
-  const { products, toggleWishlist, isWishlisted } = useStore();const lang = useAppLanguage();
+  const { products, toggleWishlist, isWishlisted, fetchProducts } = useStore(); const lang = useAppLanguage();
+
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      fetchProducts();
+    });
+    fetchProducts();
+    return unsubscribe;
+  }, [navigation]);
 
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('all');
@@ -100,9 +109,9 @@ export default function ExploreScreen({ navigation }) {
           placeholderTextColor={COLORS.textMuted}
           value={search}
           onChangeText={setSearch} />
-        
+
         {search.length > 0 &&
-        <TouchableOpacity onPress={() => setSearch('')}>
+          <TouchableOpacity onPress={() => setSearch('')}>
             <Text style={{ fontSize: 18, color: COLORS.textMuted }}>✕</Text>
           </TouchableOpacity>
         }
@@ -118,7 +127,7 @@ export default function ExploreScreen({ navigation }) {
                 key={id}
                 onPress={() => setCategory(id)}
                 style={[styles.filterChip, category === id && styles.filterChipActive]}>
-                
+
                 <Text style={styles.filterEmoji}>{CAT_EMOJIS[id]}</Text>
                 <Text style={[styles.filterLabel, category === id && styles.filterLabelActive]}>{label}</Text>
               </TouchableOpacity>);
@@ -132,41 +141,41 @@ export default function ExploreScreen({ navigation }) {
 
       {/* Sort Dropdown */}
       {showSort &&
-      <View style={styles.sortDropdown}>
+        <View style={styles.sortDropdown}>
           {SORT_KEYS.map((key) => {
-          const label = SORT_LABELS[key] || key;
-          return (
-            <TouchableOpacity key={key} onPress={() => {setSort(key);setShowSort(false);}} style={styles.sortOption}>
+            const label = SORT_LABELS[key] || key;
+            return (
+              <TouchableOpacity key={key} onPress={() => { setSort(key); setShowSort(false); }} style={styles.sortOption}>
                 <Text style={[styles.sortOptionText, sort === key && styles.sortOptionActive]}>{label}</Text>
                 {sort === key && <Text style={{ color: COLORS.saffron }}>✓</Text>}
               </TouchableOpacity>);
 
-        })}
+          })}
         </View>
       }
 
       {/* Product Grid */}
       <ScrollView style={styles.flatList} contentContainerStyle={styles.grid} showsVerticalScrollIndicator={false}>
         {filtered.length === 0 ?
-        <View style={styles.empty}>
+          <View style={styles.empty}>
             <Text style={styles.emptyEmoji}>🔍</Text>
             <Text style={styles.emptyText}>{"No products found"}</Text>
           </View> :
 
-        Array.from({ length: Math.ceil(filtered.length / 2) }, (_, i) =>
-        <View key={i} style={styles.row}>
+          Array.from({ length: Math.ceil(filtered.length / 2) }, (_, i) =>
+            <View key={i} style={styles.row}>
               {filtered.slice(i * 2, i * 2 + 2).map((item) =>
-          <ProductCard
-            key={item.id}
-            product={item}
-            navigation={navigation}
-            isWishlisted={isWishlisted(item.id)}
-            onWishlist={toggleWishlist} />
+                <ProductCard
+                  key={item.id}
+                  product={item}
+                  navigation={navigation}
+                  isWishlisted={isWishlisted(item.id)}
+                  onWishlist={toggleWishlist} />
 
-          )}
+              )}
               {filtered.slice(i * 2, i * 2 + 2).length === 1 && <View style={styles.cardFiller} />}
             </View>
-        )
+          )
         }
         <View style={{ height: 20 }} />
       </ScrollView>

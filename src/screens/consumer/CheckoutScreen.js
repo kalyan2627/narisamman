@@ -1,14 +1,16 @@
 import React, { useState } from 'react';
 import {
   View, StyleSheet, ScrollView, TouchableOpacity,
-  Platform } from
-'react-native';
+  Platform
+} from
+  'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS, SHADOWS } from '../../theme/colors';
 
-import useStore from '../../store/useStore';import Text from "../../autoTranslation/AutoText";import TextInput from "../../autoTranslation/AutoTextInput";import useAppLanguage from "../../autoTranslation/useAppLanguage";
+import useStore from '../../store/useStore'; import Text from "../../autoTranslation/AutoText"; import TextInput from "../../autoTranslation/AutoTextInput"; import useAppLanguage from "../../autoTranslation/useAppLanguage";
 
-export default function CheckoutScreen({ navigation }) {const lang = useAppLanguage();
+export default function CheckoutScreen({ navigation }) {
+  const lang = useAppLanguage();
 
   const { cart, getCartTotal, placeOrder, user } = useStore();
   const [selectedAddress, setSelectedAddress] = useState(user.addresses[0]);
@@ -16,10 +18,10 @@ export default function CheckoutScreen({ navigation }) {const lang = useAppLangu
   const [upiId, setUpiId] = useState('');
 
   const PAYMENT_METHODS = [
-  { id: 'upi', label: "UPI / GPay / PhonePe", emoji: '📱' },
-  { id: 'card', label: "Credit / Debit Card", emoji: '💳' },
-  { id: 'netbanking', label: "Net Banking", emoji: '🏦' },
-  { id: 'cod', label: "Cash on Delivery", emoji: '💵' }];
+    { id: 'upi', label: "UPI / GPay / PhonePe", emoji: '📱' },
+    { id: 'card', label: "Credit / Debit Card", emoji: '💳' },
+    { id: 'netbanking', label: "Net Banking", emoji: '🏦' },
+    { id: 'cod', label: "Cash on Delivery", emoji: '💵' }];
 
 
   const subtotal = getCartTotal();
@@ -46,11 +48,11 @@ export default function CheckoutScreen({ navigation }) {const lang = useAppLangu
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>📍 {"Delivery Address"}</Text>
           {user.addresses.map((addr) =>
-          <TouchableOpacity
-            key={addr.id}
-            onPress={() => setSelectedAddress(addr)}
-            style={[styles.addressCard, selectedAddress.id === addr.id && styles.addressCardActive]}>
-            
+            <TouchableOpacity
+              key={addr.id}
+              onPress={() => setSelectedAddress(addr)}
+              style={[styles.addressCard, selectedAddress.id === addr.id && styles.addressCardActive]}>
+
               <View style={styles.addressRadio}>
                 <View style={[styles.radio, selectedAddress.id === addr.id && styles.radioActive]} />
               </View>
@@ -74,7 +76,7 @@ export default function CheckoutScreen({ navigation }) {const lang = useAppLangu
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>🛒 {"Order Items"} ({cart.length})</Text>
           {cart.map((item) =>
-          <View key={item.id} style={styles.orderItem}>
+            <View key={item.id} style={styles.orderItem}>
               <Text style={styles.orderItemEmoji}>{item.emoji}</Text>
               <Text style={styles.orderItemName} numberOfLines={1}>{item.name}</Text>
               <Text style={styles.orderItemQty}>x{item.qty}</Text>
@@ -87,25 +89,25 @@ export default function CheckoutScreen({ navigation }) {const lang = useAppLangu
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>💳 {"Payment Method"}</Text>
           {PAYMENT_METHODS.map((pm) =>
-          <TouchableOpacity
-            key={pm.id}
-            onPress={() => setSelectedPayment(pm.id)}
-            style={[styles.paymentCard, selectedPayment === pm.id && styles.paymentCardActive]}>
-            
+            <TouchableOpacity
+              key={pm.id}
+              onPress={() => setSelectedPayment(pm.id)}
+              style={[styles.paymentCard, selectedPayment === pm.id && styles.paymentCardActive]}>
+
               <View style={[styles.radio, selectedPayment === pm.id && styles.radioActive]} />
               <Text style={styles.paymentEmoji}>{pm.emoji}</Text>
               <Text style={styles.paymentLabel}>{pm.label}</Text>
             </TouchableOpacity>
           )}
           {selectedPayment === 'upi' &&
-          <View style={styles.upiInput}>
+            <View style={styles.upiInput}>
               <TextInput
-              placeholder={"Enter UPI ID (e.g. name@upi)"}
-              placeholderTextColor={COLORS.textMuted}
-              style={styles.upiTextInput}
-              value={upiId}
-              onChangeText={setUpiId} />
-            
+                placeholder={"Enter UPI ID (e.g. name@upi)"}
+                placeholderTextColor={COLORS.textMuted}
+                style={styles.upiTextInput}
+                value={upiId}
+                onChangeText={setUpiId} />
+
             </View>
           }
         </View>
