@@ -219,9 +219,7 @@ const useStore = create((set, get) => ({
     email: 'aarav@example.com',
     phone: '+91 98765 43210',
     avatar: '👤',
-    addresses: [
-    { id: 'addr1', label: 'Home', line: '12 Park Street, Kolkata 700016', default: true },
-    { id: 'addr2', label: 'Office', line: 'Salt Lake Sector V, Kolkata 700091', default: false }]
+    addresses: [] // Loaded from backend via fetchAddresses
 
   },
 
@@ -373,6 +371,8 @@ const useStore = create((set, get) => ({
     } else if (role === 'consumer') {
       store.fetchProducts();
       store.fetchOrders();
+      store.fetchWishlist();
+      store.fetchAddresses();
     }
   },
 
@@ -644,12 +644,109 @@ const useStore = create((set, get) => ({
   },
   getCartCount: () => get().cart.reduce((sum, i) => sum + i.qty, 0),
 
-  // Wishlist
-  toggleWishlist: (product) => set((state) => {
-    const exists = state.wishlist.find((i) => i.id === product.id);
-    return { wishlist: exists ? state.wishlist.filter((i) => i.id !== product.id) : [...state.wishlist, product] };
-  }),
-  isWishlisted: (productId) => get().wishlist.some((i) => i.id === productId),
+  // Wishlist — synced with real backend
+  fetchWishlist: async () => {
+    try {
+      const userId = get().user.id;
+      const response = await fetch(`${API_BASE}/wishlist?userId=${userId}`);
+      if (response.ok) {
+        const data = await response.json();
+        set({ wishlist: data });
+      }
+    } catch (error) {
+      console.warn('Backend offline, could not fetch wishlist:', error);
+    }
+  },
+
+  toggleWishlist: async (product) => {
+    const state = get();
+    const userId = state.user.id;
+    // Use numeric db id if available (from backend product), else use string id
+    const productId = product.id;
+    const exists = state.wishlist.find((i) => String(i.id) === String(productId));
+
+    if (exists) {
+      // Optimistically remove
+      set((s) => ({ wishlist: s.wishlist.filter((i) => String(i.id) !== String(productId)) }));
+      try {
+        await fetch(`${API_BASE}/wishlist?userId=${userId}&productId=${productId}`, { method: 'DELETE' });
+      } catch (error) {
+        // Rollback on failure
+        set((s) => ({ wishlist: [...s.wishlist, product] }));
+        console.warn('Failed to remove from wishlist:', error);
+      }
+    } else {
+      // Optimistically add
+      set((s) => ({ wishlist: [...s.wishlist, product] }));
+      try {
+        await fetch(`${API_BASE}/wishlist?userId=${userId}&productId=${productId}`, { method: 'POST' });
+      } catch (error) {
+        // Rollback on failure
+        set((s) => ({ wishlist: s.wishlist.filter((i) => String(i.id) !== String(productId)) }));
+        console.warn('Failed to add to wishlist:', error);
+      }
+    }
+  },
+  isWishlisted: (productId) => get().wishlist.some((i) => String(i.id) === String(productId)),
+
+  // Address Book — synced with real backend
+  fetchAddresses: async () => {
+    try {
+      const userId = get().user.id;
+      const response = await fetch(`${API_BASE}/addresses?userId=${userId}`);
+      if (response.ok) {
+        const data = await response.json();
+        set((state) => ({ user: { ...state.user, addresses: data } }));
+      }
+    } catch (error) {
+      console.warn('Backend offline, could not fetch addresses:', error);
+    }
+  },
+
+  addAddress: async (address) => {
+    try {
+      const userId = get().user.id;
+      const payload = { ...address, userId };
+      const response = await fetch(`${API_BASE}/addresses`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      if (response.ok) {
+        await get().fetchAddresses(); // Refresh from backend
+      }
+    } catch (error) {
+      console.warn('Failed to add address:', error);
+    }
+  },
+
+  updateAddress: async (id, updates) => {
+    try {
+      const response = await fetch(`${API_BASE}/addresses/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updates)
+      });
+      if (response.ok) {
+        await get().fetchAddresses();
+      }
+    } catch (error) {
+      console.warn('Failed to update address:', error);
+    }
+  },
+
+  deleteAddress: async (id) => {
+    // Optimistically remove
+    set((state) => ({
+      user: { ...state.user, addresses: state.user.addresses.filter((a) => a.id !== id) }
+    }));
+    try {
+      await fetch(`${API_BASE}/addresses/${id}`, { method: 'DELETE' });
+    } catch (error) {
+      console.warn('Failed to delete address:', error);
+      await get().fetchAddresses(); // Re-sync on error
+    }
+  },
 
   // Search & Filter
   setSearch: (query) => set({ searchQuery: query }),
