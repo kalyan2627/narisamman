@@ -12,7 +12,13 @@ import { imgSrc } from '../../utils/imageSource';import Text from "../../autoTra
 
 
 
-const { width } = Dimensions.get('window');
+const { width = 375 } = (() => {
+  try {
+    return Dimensions.get('window') || {};
+  } catch (e) {
+    return {};
+  }
+})();
 
 const CATEGORY_IDS = ['all', 'food', 'textiles', 'crafts'];
 const SORT_KEYS = ['Relevance', 'Price: Low to High', 'Price: High to Low', 'Rating', 'Newest'];

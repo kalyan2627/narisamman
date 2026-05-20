@@ -98,7 +98,7 @@ const sectionStyles = StyleSheet.create({
 
 /* ─── main screen ────────────────────────────────────────────────────────── */
 export default function VendorProfileScreen({ navigation }) {
-  const { vendorProfile, vendorOrders, vendorNotifications, logout, markVendorNotifRead } = useStore();const lang = useAppLanguage();
+  const { vendorProfile, vendorOrders, vendorNotifications, logout, markVendorNotifRead, updateVendorProfile } = useStore();const lang = useAppLanguage();
 
 
   /* live stats */
@@ -117,33 +117,60 @@ export default function VendorProfileScreen({ navigation }) {
 
   /* personal form */
   const [pForm, setPForm] = useState({
-    name: vendorProfile.name,
-    phone: vendorProfile.phone,
+    name: vendorProfile.name || '',
+    phone: vendorProfile.phone || '',
     email: vendorProfile.email || '',
-    location: vendorProfile.location,
-    shgName: vendorProfile.shgName,
-    members: vendorProfile.members?.toString() || '16',
+    location: vendorProfile.location || '',
+    shgName: vendorProfile.shgName || '',
+    members: vendorProfile.members?.toString() || '10',
     category: vendorProfile.category || 'Handloom & Textiles',
-    bio: vendorProfile.bio || 'Handwoven textiles by women artisans of Bengal.'
+    bio: vendorProfile.bio || ''
   });
 
   /* bank form */
   const [bForm, setBForm] = useState({
-    accountHolder: vendorProfile.name,
-    accountNumber: '••••••••3821',
-    bankName: 'State Bank of India',
-    ifsc: 'SBIN0001234',
-    branch: 'Nadia Main Branch',
-    upi: vendorProfile.upi || ''
+    accountHolder: vendorProfile.accountHolderName || vendorProfile.name || '',
+    accountNumber: vendorProfile.bankAccountNumber || '',
+    bankName: vendorProfile.bankName || '',
+    ifsc: vendorProfile.bankIfscCode || '',
+    branch: vendorProfile.branch || 'Main Branch',
+    upi: vendorProfile.upiId || ''
   });
 
   /* kyc form */
   const [kForm, setKForm] = useState({
-    aadhaar: vendorProfile.aadhaar || 'XXXX-XXXX-3456',
+    aadhaar: vendorProfile.aadhaar || '',
     gstin: vendorProfile.gstin || '',
     fssai: vendorProfile.fssai || '',
-    kycStatus: vendorProfile.kycStatus || 'verified'
+    kycStatus: vendorProfile.kycStatus || 'pending'
   });
+
+  React.useEffect(() => {
+    setPForm({
+      name: vendorProfile.name || '',
+      phone: vendorProfile.phone || '',
+      email: vendorProfile.email || '',
+      location: vendorProfile.location || '',
+      shgName: vendorProfile.shgName || '',
+      members: vendorProfile.members?.toString() || '10',
+      category: vendorProfile.category || 'Handloom & Textiles',
+      bio: vendorProfile.bio || ''
+    });
+    setBForm({
+      accountHolder: vendorProfile.accountHolderName || vendorProfile.name || '',
+      accountNumber: vendorProfile.bankAccountNumber || '',
+      bankName: vendorProfile.bankName || '',
+      ifsc: vendorProfile.bankIfscCode || '',
+      branch: vendorProfile.branch || 'Main Branch',
+      upi: vendorProfile.upiId || ''
+    });
+    setKForm({
+      aadhaar: vendorProfile.aadhaar || '',
+      gstin: vendorProfile.gstin || '',
+      fssai: vendorProfile.fssai || '',
+      kycStatus: vendorProfile.kycStatus || 'pending'
+    });
+  }, [vendorProfile]);
 
   /* notification preferences */
   const [notifPrefs, setNotifPrefs] = useState({
@@ -153,9 +180,40 @@ export default function VendorProfileScreen({ navigation }) {
     smsAlerts: true
   });
 
-  const savePersonal = () => {setPersonalEdit(false);};
-  const saveBank = () => {setBankEdit(false);};
-  const saveKyc = () => {setKycEdit(false);};
+  const savePersonal = () => {
+    updateVendorProfile({
+      leaderName: pForm.name,
+      phone: pForm.phone,
+      email: pForm.email,
+      location: pForm.location,
+      shgName: pForm.shgName,
+      members: parseInt(pForm.members) || 0,
+      category: pForm.category,
+      bio: pForm.bio
+    });
+    setPersonalEdit(false);
+  };
+
+  const saveBank = () => {
+    updateVendorProfile({
+      accountHolderName: bForm.accountHolder,
+      bankAccountNumber: bForm.accountNumber,
+      bankName: bForm.bankName,
+      bankIfscCode: bForm.ifsc,
+      branch: bForm.branch,
+      upiId: bForm.upi
+    });
+    setBankEdit(false);
+  };
+
+  const saveKyc = () => {
+    updateVendorProfile({
+      aadhaarNumber: kForm.aadhaar,
+      gstNumber: kForm.gstin,
+      fssai: kForm.fssai
+    });
+    setKycEdit(false);
+  };
 
   const handleLogout = () => {
     if (Platform.OS === 'web') {

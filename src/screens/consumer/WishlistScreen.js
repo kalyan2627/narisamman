@@ -14,7 +14,13 @@ import useStore from '../../store/useStore';
 import { imgSrc } from '../../utils/imageSource';
 import Text from '../../autoTranslation/AutoText';
 
-const { width } = Dimensions.get('window');
+const { width = 375 } = (() => {
+  try {
+    return Dimensions.get('window') || {};
+  } catch (e) {
+    return {};
+  }
+})();
 const CARD_WIDTH = (width - 48) / 2;
 
 function WishlistCard({ item, onAddToCart, onRemove, onPress }) {

@@ -6,14 +6,22 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { CommonActions } from '@react-navigation/native';
 import { COLORS } from '../theme/colors';
-import useStore from '../store/useStore';import Text from "../autoTranslation/AutoText";import TextInput from "../autoTranslation/AutoTextInput";import useAppLanguage from "../autoTranslation/useAppLanguage";
+import useStore from '../store/useStore';
+import { publicFetch } from '../utils/api';
+import Text from "../autoTranslation/AutoText";
+import TextInput from "../autoTranslation/AutoTextInput";
+import useAppLanguage from "../autoTranslation/useAppLanguage";
 import NariLogoIcon from '../components/NariLogoIcon';
 
-
-// ─── Demo Credentials ─────────────────────────────────────────────────────────
-const DEMO_CREDENTIALS = {
-  email: 'admin@narisamman.in',
-  password: 'Admin@1234'
+const KeyboardAvoidingWrapper = ({ children }) => {
+  if (Platform.OS === 'web') {
+    return <View style={{ flex: 1 }}>{children}</View>;
+  }
+  return (
+    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+      {children}
+    </KeyboardAvoidingView>
+  );
 };
 
 export default function AdminLoginScreen({ navigation }) {
@@ -22,16 +30,10 @@ export default function AdminLoginScreen({ navigation }) {
   const [showPass, setShowPass] = useState(false);
   const [errors, setErrors] = useState({});
   const [loginError, setLoginError] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const loginUser = useStore((s) => s.loginUser);const lang = useAppLanguage();
-
-
-  const fillDemo = () => {
-    setEmail(DEMO_CREDENTIALS.email);
-    setPassword(DEMO_CREDENTIALS.password);
-    setErrors({});
-    setLoginError('');
-  };
+  const loginUser = useStore((s) => s.loginUser);
+  const lang = useAppLanguage();
 
   const validate = () => {
     const e = {};
@@ -41,25 +43,36 @@ export default function AdminLoginScreen({ navigation }) {
     return Object.keys(e).length === 0;
   };
 
-  const handleLogin = () => {
+  const handleLogin = async () => {
     setLoginError('');
     if (!validate()) return;
 
-    // Check against demo credentials
-    if (
-    email.trim().toLowerCase() === DEMO_CREDENTIALS.email.toLowerCase() &&
-    password === DEMO_CREDENTIALS.password)
-    {
-      loginUser('admin', { email });
-      navigation.dispatch(CommonActions.reset({ index: 0, routes: [{ name: 'AdminStack' }] }));
-    } else {
-      setLoginError('Invalid email or password. Use the demo credentials below.');
+    setLoading(true);
+    try {
+      const res = await publicFetch('/api/admin/login', {
+        method: 'POST',
+        body: JSON.stringify({ email, password })
+      });
+      
+      const data = await res.json();
+      setLoading(false);
+      
+      if (res.status === 200 && data.token) {
+        loginUser('admin', { email: data.email }, data.token);
+        navigation.dispatch(CommonActions.reset({ index: 0, routes: [{ name: 'AdminStack' }] }));
+      } else {
+        setLoginError(data.error || 'Invalid credentials');
+      }
+    } catch (err) {
+      console.error(err);
+      setLoading(false);
+      setLoginError('Failed to connect to server');
     }
   };
 
   return (
     <LinearGradient colors={['#0A0F1A', '#0F1822', '#1C2437']} style={styles.container}>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+      <KeyboardAvoidingWrapper>
         <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="always" keyboardDismissMode="none">
 
           {/* Back */}
@@ -85,25 +98,6 @@ export default function AdminLoginScreen({ navigation }) {
             <Text style={styles.securityIcon}>🔐</Text>
             <Text style={styles.securityText}>{"Secure Admin Access · IS&SF Initiative"}</Text>
           </View>
-
-          {/* Demo Credentials Card */}
-          <TouchableOpacity onPress={fillDemo} activeOpacity={0.8} style={styles.demoCard}>
-            <LinearGradient colors={[COLORS.purple + '25', COLORS.primary + '15']} style={styles.demoCardInner}>
-              <View style={styles.demoHeader}>
-                <Text style={styles.demoTitle}>🎯 {"Demo Credentials"}</Text>
-                <View style={styles.tapBadge}><Text style={styles.tapBadgeText}>{"TAP TO FILL"}</Text></View>
-              </View>
-              <View style={styles.credRow}>
-                <Text style={styles.credLabel}>{"Email Address"}</Text>
-                <Text style={styles.credValue}>{DEMO_CREDENTIALS.email}</Text>
-              </View>
-              <View style={styles.credRow}>
-                <Text style={styles.credLabel}>{"Password"}</Text>
-                <Text style={styles.credValue}>{DEMO_CREDENTIALS.password}</Text>
-              </View>
-              <Text style={styles.demoNote}>{"* Tap this card to auto-fill credentials"}</Text>
-            </LinearGradient>
-          </TouchableOpacity>
 
           {/* Login Form */}
           <View style={styles.card}>
@@ -155,13 +149,13 @@ export default function AdminLoginScreen({ navigation }) {
             </View>
 
             {/* Submit */}
-            <TouchableOpacity onPress={handleLogin} activeOpacity={0.85} style={{ marginTop: 8 }}>
+            <TouchableOpacity onPress={handleLogin} disabled={loading} activeOpacity={0.85} style={{ marginTop: 8 }}>
               <LinearGradient
                 colors={[COLORS.primaryDark, COLORS.primary]}
                 style={styles.submitBtn}
                 start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
                 
-                <Text style={styles.submitText}>{"Access Admin Portal  →"}</Text>
+                <Text style={styles.submitText}>{loading ? "Verifying..." : "Access Admin Portal  →"}</Text>
               </LinearGradient>
             </TouchableOpacity>
           </View>
@@ -190,9 +184,8 @@ export default function AdminLoginScreen({ navigation }) {
 
           <Text style={styles.footer}>{"IS&SF Initiative · Empowering Rural West Bengal"}</Text>
         </ScrollView>
-      </KeyboardAvoidingView>
+      </KeyboardAvoidingWrapper>
     </LinearGradient>);
-
 }
 
 const styles = StyleSheet.create({
@@ -223,27 +216,6 @@ const styles = StyleSheet.create({
   },
   securityIcon: { fontSize: 16 },
   securityText: { fontSize: 12, color: COLORS.purple, fontWeight: '600' },
-
-  demoCard: { marginBottom: 20, borderRadius: 18, overflow: 'hidden' },
-  demoCardInner: {
-    borderRadius: 18, padding: 18,
-    borderWidth: 1.5, borderColor: COLORS.purple + '40'
-  },
-  demoHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 },
-  demoTitle: { fontSize: 15, fontWeight: '800', color: COLORS.textPrimary },
-  tapBadge: {
-    backgroundColor: COLORS.primary + '30', borderRadius: 20,
-    paddingHorizontal: 10, paddingVertical: 4, borderWidth: 1, borderColor: COLORS.primary + '50'
-  },
-  tapBadgeText: { fontSize: 9, fontWeight: '800', color: COLORS.primary, letterSpacing: 0.8 },
-  credRow: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 10,
-    paddingVertical: 10, paddingHorizontal: 14, marginBottom: 8
-  },
-  credLabel: { fontSize: 12, color: 'rgba(200,208,228,0.5)', fontWeight: '600', width: 70 },
-  credValue: { fontSize: 14, color: COLORS.textPrimary, fontWeight: '700', fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace', flex: 1, textAlign: 'right' },
-  demoNote: { fontSize: 11, color: 'rgba(200,208,228,0.35)', marginTop: 6, textAlign: 'center', fontStyle: 'italic' },
 
   card: {
     backgroundColor: 'rgba(19,29,41,0.98)',

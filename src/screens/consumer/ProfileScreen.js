@@ -25,6 +25,15 @@ export default function ProfileScreen({ navigation }) {
   });
   const [errors, setErrors] = useState({});
 
+  React.useEffect(() => {
+    setForm({
+      name: user.name || '',
+      email: user.email || '',
+      phone: user.phone || '',
+      avatar: user.avatar || '👤'
+    });
+  }, [user]);
+
   const stats = [
   { label: "My Orders", value: orders.length, emoji: '📦' },
   { label: "Wishlist", value: wishlist.length, emoji: '❤️' },

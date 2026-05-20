@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View, StyleSheet, ScrollView, TouchableOpacity,
-  Alert, Platform } from
+  Alert, Platform, Image } from
 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS, SHADOWS } from '../../theme/colors';
@@ -22,7 +22,13 @@ const CATEGORY_COLORS = {
 
 export default function SHGManagementScreen({ navigation }) {const lang = useAppLanguage();
 
-  const { shgGroups, toggleSHGStatus, updateSHGKYC, pendingSHGRegistrations, approveSHGRegistration, rejectSHGRegistration } = useStore();
+  const { shgGroups, toggleSHGStatus, updateSHGKYC, pendingSHGRegistrations, approveSHGRegistration, rejectSHGRegistration, fetchPendingSHGs } = useStore();
+
+  useEffect(() => {
+    if (fetchPendingSHGs) {
+      fetchPendingSHGs();
+    }
+  }, []);
 
   const [search, setSearch] = useState('');
   const [filterKYC, setFilterKYC] = useState('all'); // all | verified | pending | rejected
@@ -142,6 +148,31 @@ export default function SHGManagementScreen({ navigation }) {const lang = useApp
                 <View style={styles.regContact}>
                   <Text style={styles.regContactText}>✉️  {reg.email}</Text>
                   <Text style={styles.regContactText}>📞  {reg.phone}</Text>
+                </View>
+                <View style={styles.regDetailsContainer}>
+                  <View style={styles.regDetailsCol}>
+                    <Text style={styles.regDetailsHeading}>📄 KYC Details</Text>
+                    <Text style={styles.regDetailsText}>🪪 Aadhaar: {reg.aadhaarNumber || '—'}</Text>
+                    {reg.aadhaarImage ? (
+                      <Image source={{ uri: reg.aadhaarImage }} style={styles.kycImage} resizeMode="contain" />
+                    ) : null}
+                    <Text style={styles.regDetailsText}>📋 PAN: {reg.panNumber || '—'}</Text>
+                    {reg.panImage ? (
+                      <Image source={{ uri: reg.panImage }} style={styles.kycImage} resizeMode="contain" />
+                    ) : null}
+                    {reg.gstNumber ? <Text style={styles.regDetailsText}>💼 GST: {reg.gstNumber}</Text> : null}
+                    {reg.gstImage ? (
+                      <Image source={{ uri: reg.gstImage }} style={styles.kycImage} resizeMode="contain" />
+                    ) : null}
+                  </View>
+                  <View style={styles.regDetailsCol}>
+                    <Text style={styles.regDetailsHeading}>🏦 Bank Details</Text>
+                    <Text style={styles.regDetailsText}>👤 Holder: {reg.accountHolderName || '—'}</Text>
+                    <Text style={styles.regDetailsText}>🔢 Acc No: {reg.bankAccountNumber ? `••••••••${reg.bankAccountNumber.slice(-4)}` : '—'}</Text>
+                    <Text style={styles.regDetailsText}>🏛️ Bank: {reg.bankName || '—'}</Text>
+                    <Text style={styles.regDetailsText}>🔤 IFSC: {reg.bankIfscCode || '—'}</Text>
+                    {reg.upiId ? <Text style={styles.regDetailsText}>📱 UPI: {reg.upiId}</Text> : null}
+                  </View>
                 </View>
                 <View style={styles.regActions}>
                   <TouchableOpacity
@@ -420,6 +451,10 @@ const styles = StyleSheet.create({
   pendingRegBadgeText: { fontSize: 9, color: COLORS.warning, fontWeight: '800', letterSpacing: 0.5 },
   regContact: { flexDirection: 'row', gap: 16, marginBottom: 12, backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: 10, padding: 10 },
   regContactText: { fontSize: 12, color: COLORS.textSecondary, flex: 1 },
+  regDetailsContainer: { flexDirection: 'row', gap: 12, marginBottom: 12 },
+  regDetailsCol: { flex: 1, backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: 10, padding: 10 },
+  regDetailsHeading: { fontSize: 11, fontWeight: '800', color: COLORS.warning, marginBottom: 6, textTransform: 'uppercase' },
+  regDetailsText: { fontSize: 11, color: COLORS.textSecondary, marginBottom: 4 },
   regActions: { flexDirection: 'row', gap: 10 },
   approveBtn: { flex: 1, backgroundColor: '#4CAF5020', borderRadius: 12, paddingVertical: 11, alignItems: 'center', borderWidth: 1, borderColor: '#4CAF5050' },
   approveBtnText: { fontSize: 13, fontWeight: '700', color: '#4CAF50' },
@@ -433,5 +468,13 @@ const styles = StyleSheet.create({
   empInfo: { flex: 1 },
   empName: { fontSize: 13, fontWeight: '700', color: COLORS.textPrimary },
   empRole: { fontSize: 11, color: COLORS.textMuted, marginTop: 1 },
-  empJoined: { fontSize: 10, color: COLORS.textMuted }
+  empJoined: { fontSize: 10, color: COLORS.textMuted },
+  kycImage: {
+    width: '100%',
+    height: 120,
+    borderRadius: 8,
+    marginTop: 6,
+    marginBottom: 10,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+  }
 });

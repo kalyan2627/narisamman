@@ -1,11 +1,8 @@
 import React from 'react';
-import { View, StyleSheet, TouchableOpacity, Dimensions, ScrollView } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS } from '../theme/colors';import Text from "../autoTranslation/AutoText";import useAppLanguage from "../autoTranslation/useAppLanguage";
 import NariLogoIcon from '../components/NariLogoIcon';
-
-
-const { width } = Dimensions.get('window');
 
 
 
@@ -47,45 +44,47 @@ export default function RoleSelectScreen({ navigation }) {const lang = useAppLan
 
   return (
     <LinearGradient colors={['#0F1822', '#1C2437']} style={styles.container}>
-      <View style={styles.header}>
-        <View style={styles.logoRow}>
-          <NariLogoIcon size={34} />
-          <Text style={styles.logo}>{"Nari Samman"}</Text>
+      <ScrollView contentContainerStyle={{ flexGrow: 1 }} showsVerticalScrollIndicator={false}>
+        <View style={styles.header}>
+          <View style={styles.logoRow}>
+            <NariLogoIcon size={34} />
+            <Text style={styles.logo}>{"Nari Samman"}</Text>
+          </View>
+          <Text style={styles.title}>{"How would you like to participate?"}</Text>
+          <Text style={styles.subtitle}>{"Choose your role to get started"}</Text>
         </View>
-        <Text style={styles.title}>{"How would you like to participate?"}</Text>
-        <Text style={styles.subtitle}>{"Choose your role to get started"}</Text>
-      </View>
 
-      <ScrollView contentContainerStyle={styles.cards} showsVerticalScrollIndicator={false}>
-        {ROLES.map((role) =>
-        <TouchableOpacity key={role.id} onPress={() => handleSelect(role.id)} activeOpacity={0.88} style={styles.cardWrapper}>
-            <LinearGradient colors={['rgba(200,208,228,0.06)', 'rgba(200,208,228,0.02)']} style={styles.card}>
-              <View style={styles.cardHeader}>
-                <View style={[styles.emojiBox, { borderColor: role.gradient[0] + '60' }]}>
-                  <Text style={styles.emoji}>{role.emoji}</Text>
-                </View>
-                <View style={styles.cardTitleGroup}>
-                  <Text style={styles.cardTitle}>{role.title}</Text>
-                  <Text style={styles.cardSubtitle}>{role.subtitle}</Text>
-                </View>
-                <Text style={styles.arrow}>→</Text>
-              </View>
-              <View style={styles.divider} />
-              <View style={styles.highlights}>
-                {role.highlights.map((h, i) =>
-              <View key={i} style={styles.highlightRow}>
-                    <LinearGradient colors={role.gradient} style={styles.dot} />
-                    <Text style={styles.highlightText}>{h}</Text>
+        <View style={styles.cards}>
+          {ROLES.map((role) =>
+            <TouchableOpacity key={role.id} onPress={() => handleSelect(role.id)} activeOpacity={0.88} style={styles.cardWrapper}>
+              <LinearGradient colors={['rgba(200,208,228,0.06)', 'rgba(200,208,228,0.02)']} style={styles.card}>
+                <View style={styles.cardHeader}>
+                  <View style={[styles.emojiBox, { borderColor: role.gradient[0] + '60' }]}>
+                    <Text style={styles.emoji}>{role.emoji}</Text>
                   </View>
-              )}
-              </View>
-              <LinearGradient colors={[...role.gradient, 'transparent']} style={styles.cardAccentBar} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
-            </LinearGradient>
-          </TouchableOpacity>
-        )}
-      </ScrollView>
+                  <View style={styles.cardTitleGroup}>
+                    <Text style={styles.cardTitle}>{role.title}</Text>
+                    <Text style={styles.cardSubtitle}>{role.subtitle}</Text>
+                  </View>
+                  <Text style={styles.arrow}>→</Text>
+                </View>
+                <View style={styles.divider} />
+                <View style={styles.highlights}>
+                  {role.highlights.map((h, i) =>
+                    <View key={i} style={styles.highlightRow}>
+                      <LinearGradient colors={role.gradient} style={styles.dot} />
+                      <Text style={styles.highlightText}>{h}</Text>
+                    </View>
+                  )}
+                </View>
+                <LinearGradient colors={[...role.gradient, 'transparent']} style={styles.cardAccentBar} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
+              </LinearGradient>
+            </TouchableOpacity>
+          )}
+        </View>
 
-      <Text style={styles.footer}>{"IS&SF Initiative · Empowering Rural West Bengal"}</Text>
+        <Text style={styles.footer}>{"IS&SF Initiative · Empowering Rural West Bengal"}</Text>
+      </ScrollView>
     </LinearGradient>);
 
 }

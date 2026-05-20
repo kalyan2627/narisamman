@@ -1,4 +1,6 @@
 import { create } from 'zustand';
+import * as SecureStore from 'expo-secure-store';
+import { publicFetch, authFetch } from '../utils/api';
 
 // ─── Local Asset Images ───────────────────────────────────────────────────────
 export const IMAGES = {
@@ -201,6 +203,8 @@ const useStore = create((set, get) => ({
   currentRole: null,
   currentScreen: 'Splash',
   isLoggedIn: false,
+  token: null,
+  userRole: null,
 
   // ─── App Language ─────────────────────────────────────────────────────────
   language: 'en', // 'en' | 'bn' | 'hi'
@@ -288,33 +292,142 @@ const useStore = create((set, get) => ({
   // ─── Actions ───────────────────────────────────────────────────────────────
   setRole: (role) => set({ currentRole: role, isLoggedIn: true }),
   setScreen: (screen) => set({ currentScreen: screen }),
-  logout: () => set({ currentRole: null, isLoggedIn: false, currentScreen: 'RoleSelect', cart: [], wishlist: [] }),
+  logout: () => {
+    SecureStore.deleteItemAsync('naari_jwt_token').catch((e) => console.error("SecureStore error", e));
+    set({
+      currentRole: null,
+      isLoggedIn: false,
+      token: null,
+      userRole: null,
+      currentScreen: 'RoleSelect',
+      cart: [],
+      wishlist: []
+    });
+  },
   setLanguage: (lang) => set({ language: lang }),
 
-  // ─── Auth Actions ─────────────────────────────────────────────────────────
-  // Called from login screens — sets role + updates profile with credentials
-  loginUser: (role, credentials) => set((state) => {
-    if (role === 'consumer') {
-      return {
-        currentRole: 'consumer',
-        isLoggedIn: true,
-        user: { ...state.user, email: credentials.email || state.user.email }
-      };
-    } else if (role === 'vendor') {
-      return {
-        currentRole: 'vendor',
-        isLoggedIn: true,
-        vendorProfile: { ...state.vendorProfile, email: credentials.email || state.vendorProfile.email }
-      };
-    } else if (role === 'admin') {
-      return {
-        currentRole: 'admin',
-        isLoggedIn: true,
-        adminProfile: { ...state.adminProfile, email: credentials.email || state.adminProfile.email }
-      };
+  authHeader: () => {
+    const token = get().token;
+    return token ? { 'Authorization': 'Bearer ' + token } : {};
+  },
+
+  restoreSession: async () => {
+    try {
+      const stored = await SecureStore.getItemAsync('naari_jwt_token');
+      if (stored) {
+        const parts = stored.split('.');
+        if (parts.length === 3) {
+          // Decode payload safely using pure JS base64 decoder
+          const base64Url = parts[1];
+          let base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+          while (base64.length % 4) { base64 += '='; }
+          
+          let decodedStr = '';
+          if (typeof atob !== 'undefined') {
+            decodedStr = atob(base64);
+          } else {
+            const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=';
+            let buffer = 0;
+            let bits = 0;
+            for (let i = 0; i < base64.length; i++) {
+              const char = base64[i];
+              const idx = chars.indexOf(char);
+              if (idx === -1 || char === '=') continue;
+              buffer = (buffer << 6) | idx;
+              bits += 6;
+              if (bits >= 8) {
+                bits -= 8;
+                decodedStr += String.fromCharCode((buffer >> bits) & 0xff);
+              }
+            }
+          }
+          
+          const payload = JSON.parse(decodedStr);
+          const isExpired = payload.exp && payload.exp < (Date.now() / 1000);
+          if (!isExpired) {
+            const rawRole = payload.role ? payload.role.toLowerCase() : '';
+            let mappedRole = null;
+            if (rawRole.includes('admin')) mappedRole = 'admin';
+            else if (rawRole.includes('vendor') || rawRole.includes('shg')) mappedRole = 'vendor';
+            else if (rawRole.includes('consumer')) mappedRole = 'consumer';
+            
+            if (mappedRole) {
+              set({
+                token: stored,
+                userRole: mappedRole,
+                currentRole: mappedRole,
+                isLoggedIn: true,
+                currentScreen: mappedRole === 'admin' ? 'AdminHome' : (mappedRole === 'vendor' ? 'SHGHome' : 'ConsumerHome')
+              });
+              return true;
+            }
+          }
+        }
+      }
+      get().logout();
+      return false;
+    } catch (e) {
+      console.error("Session restoration failed", e);
+      get().logout();
+      return false;
     }
-    return { currentRole: role, isLoggedIn: true };
-  }),
+  },
+
+  // ─── Auth Actions ─────────────────────────────────────────────────────────
+  loginUser: (role, credentials, token) => {
+    if (token) {
+      SecureStore.setItemAsync('naari_jwt_token', token).catch((e) => console.error("SecureStore error", e));
+    }
+    set((state) => {
+      const tokenState = { token: token || state.token, userRole: role };
+      if (role === 'consumer') {
+        return {
+          currentRole: 'consumer',
+          isLoggedIn: true,
+          ...tokenState,
+          user: {
+            ...state.user,
+            id: credentials.id || state.user.id,
+            name: credentials.fullName || state.user.name,
+            email: credentials.email || state.user.email,
+            phone: credentials.mobileNumber || state.user.phone
+          }
+        };
+      } else if (role === 'vendor') {
+        return {
+          currentRole: 'vendor',
+          isLoggedIn: true,
+          ...tokenState,
+          vendorProfile: {
+            ...state.vendorProfile,
+            id: credentials.id || state.vendorProfile.id,
+            name: credentials.leaderName || state.vendorProfile.name,
+            shgName: credentials.shgName || state.vendorProfile.shgName,
+            location: credentials.location || state.vendorProfile.location,
+            phone: credentials.phone || state.vendorProfile.phone,
+            email: credentials.email || state.vendorProfile.email,
+            kycStatus: credentials.kycStatus?.toLowerCase() || 'pending',
+            bankLinked: credentials.bankAccountNumber ? true : false,
+            aadhaar: credentials.aadhaarNumber || '',
+            gstin: credentials.gstNumber || '',
+            bankAccountNumber: credentials.bankAccountNumber || '',
+            bankIfscCode: credentials.bankIfscCode || '',
+            bankName: credentials.bankName || '',
+            accountHolderName: credentials.accountHolderName || '',
+            upiId: credentials.upiId || '',
+          }
+        };
+      } else if (role === 'admin') {
+        return {
+          currentRole: 'admin',
+          isLoggedIn: true,
+          ...tokenState,
+          adminProfile: { ...state.adminProfile, email: credentials.email || state.adminProfile.email }
+        };
+      }
+      return { currentRole: role, isLoggedIn: true, ...tokenState };
+    });
+  },
 
   // Called from registration screens — sets role + creates new profile data
   registerUser: (role, data) => set((state) => {
@@ -349,9 +462,88 @@ const useStore = create((set, get) => ({
   }),
 
   // Profile Updates
-  updateUserProfile: (updates) => set((state) => ({
-    user: { ...state.user, ...updates }
-  })),
+  updateUserProfile: async (updates) => {
+    try {
+      const token = get().token;
+      const payload = {
+        fullName: updates.name,
+        email: updates.email,
+        mobileNumber: updates.phone,
+        avatar: updates.avatar
+      };
+      const res = await authFetch('/api/consumer/profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      }, token);
+
+      if (res.ok) {
+        const saved = await res.json();
+        set((state) => ({
+          user: {
+            ...state.user,
+            name: saved.fullName || state.user.name,
+            email: saved.email || state.user.email,
+            phone: saved.mobileNumber || state.user.phone,
+            avatar: saved.avatar || state.user.avatar
+          }
+        }));
+        return true;
+      }
+    } catch (e) {
+      console.error('Failed to update consumer profile:', e);
+    }
+    set((state) => ({
+      user: { ...state.user, ...updates }
+    }));
+    return false;
+  },
+
+  updateVendorProfile: async (updates) => {
+    try {
+      const token = get().token;
+      const res = await authFetch('/api/shg/profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updates)
+      }, token);
+
+      if (res.ok) {
+        const saved = await res.json();
+        set((state) => ({
+          vendorProfile: {
+            ...state.vendorProfile,
+            id: saved.id,
+            name: saved.leaderName,
+            shgName: saved.shgName,
+            phone: saved.phone,
+            email: saved.email,
+            location: saved.location,
+            category: saved.category,
+            members: saved.members,
+            bio: saved.bio,
+            avatar: saved.avatar,
+            bankAccountNumber: saved.bankAccountNumber,
+            bankIfscCode: saved.bankIfscCode,
+            bankName: saved.bankName,
+            accountHolderName: saved.accountHolderName,
+            upiId: saved.upiId,
+            aadhaar: saved.aadhaarNumber,
+            gstin: saved.gstNumber,
+            panNumber: saved.panNumber
+          }
+        }));
+        return true;
+      }
+    } catch (e) {
+      console.error('Failed to update vendor profile:', e);
+    }
+    set((state) => ({
+      vendorProfile: { ...state.vendorProfile, ...updates }
+    }));
+    return false;
+  },
+
   updateAdminProfile: (updates) => set((state) => ({
     adminProfile: { ...state.adminProfile, ...updates }
   })),
@@ -414,87 +606,181 @@ const useStore = create((set, get) => ({
   }],
 
   // ─── SHG Registration Approval Workflow ─────────────────────────────────────
-  // New SHGs submit registration → lands in pendingSHGRegistrations → admin approves → added to shgGroups
-  submitSHGRegistration: (data) => set((state) => {
-    const newReg = {
-      id: `shgreg_${Date.now()}`,
-      leaderName: data.leaderName,
-      shgName: data.shgName,
-      email: data.email,
-      phone: data.phone,
-      location: data.location,
-      category: data.category,
-      members: parseInt(data.members) || 0,
-      mobileVerified: Boolean(data.mobileVerified),
-      submittedAt: new Date().toISOString().split('T')[0],
-      status: 'pending' // pending | approved | rejected
-    };
-    return {
-      pendingSHGRegistrations: [newReg, ...state.pendingSHGRegistrations],
-      adminStats: {
-        ...state.adminStats,
-        pendingApprovals: state.adminStats.pendingApprovals + 1
+  fetchPendingSHGs: async () => {
+    try {
+      const token = get().token;
+      const res = await authFetch('/api/shg/pending', {}, token);
+      if (res.ok) {
+        const data = await res.json();
+        const mapped = data.map((shg) => ({
+          id: shg.id,
+          leaderName: shg.leaderName,
+          shgName: shg.shgName,
+          email: shg.email,
+          phone: shg.phone,
+          location: shg.location,
+          category: shg.category,
+          members: shg.members,
+          submittedAt: new Date().toISOString().split('T')[0],
+          status: shg.status?.toLowerCase() || 'pending',
+          aadhaarNumber: shg.aadhaarNumber,
+          panNumber: shg.panNumber,
+          gstNumber: shg.gstNumber,
+          aadhaarImage: shg.aadhaarImage,
+          panImage: shg.panImage,
+          gstImage: shg.gstImage,
+          accountHolderName: shg.accountHolderName,
+          bankAccountNumber: shg.bankAccountNumber,
+          bankIfscCode: shg.bankIfscCode,
+          bankName: shg.bankName,
+          upiId: shg.upiId
+        }));
+        set({ pendingSHGRegistrations: mapped });
       }
-    };
-  }),
+    } catch (e) {
+      console.error('Failed to fetch pending SHGs:', e);
+    }
+  },
+
+  submitSHGRegistration: async (data) => {
+    try {
+      const res = await publicFetch('/api/shg/register', {
+        method: 'POST',
+        body: JSON.stringify(data)
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.message || 'Registration failed');
+      }
+      const saved = await res.json();
+      set((state) => ({
+        pendingSHGRegistrations: [
+          {
+            id: saved.id,
+            leaderName: saved.leaderName,
+            shgName: saved.shgName,
+            email: saved.email,
+            phone: saved.phone,
+            location: saved.location,
+            category: saved.category,
+            members: saved.members,
+            submittedAt: new Date().toISOString().split('T')[0],
+            status: 'pending',
+            aadhaarNumber: saved.aadhaarNumber,
+            panNumber: saved.panNumber,
+            gstNumber: saved.gstNumber,
+            aadhaarImage: saved.aadhaarImage,
+            panImage: saved.panImage,
+            gstImage: saved.gstImage,
+            accountHolderName: saved.accountHolderName,
+            bankAccountNumber: saved.bankAccountNumber,
+            bankIfscCode: saved.bankIfscCode,
+            bankName: saved.bankName,
+            upiId: saved.upiId
+          },
+          ...state.pendingSHGRegistrations
+        ],
+        adminStats: {
+          ...state.adminStats,
+          pendingApprovals: state.adminStats.pendingApprovals + 1
+        }
+      }));
+      return saved;
+    } catch (e) {
+      console.error(e);
+      throw e;
+    }
+  },
 
   // Admin approves a pending SHG registration → adds them to shgGroups as active
-  approveSHGRegistration: (regId) => set((state) => {
-    const reg = state.pendingSHGRegistrations.find((r) => r.id === regId);
-    if (!reg) return {};
-    const catMap = {
-      'Food & Agriculture': 'food',
-      'Textiles & Weaving': 'textiles',
-      'Crafts & Handicrafts': 'crafts',
-      'Herbal & Wellness': 'food',
-      'Other': 'crafts'
-    };
-    const emojiMap = { food: '🌿', textiles: '🧵', crafts: '🏺' };
-    const cat = catMap[reg.category] || 'crafts';
-    const newSHG = {
-      id: `shg_${regId}`,
-      name: reg.leaderName,
-      shgName: reg.shgName,
-      location: reg.location,
-      phone: reg.phone,
-      email: reg.email,
-      mobileVerified: Boolean(reg.mobileVerified),
-      avatar: emojiMap[cat] || '👩‍🌾',
-      products: 0,
-      rating: 0,
-      members: reg.members,
-      kycStatus: 'pending', // KYC still needs to be done after approval
-      isActive: true,
-      joinedDate: new Date().toISOString().split('T')[0],
-      bankLinked: false,
-      totalRevenue: 0,
-      category: cat,
-      story: `${reg.leaderName} leads ${reg.shgName}, recently onboarded to Nari Samman.`,
-      employees: []
-    };
-    return {
-      pendingSHGRegistrations: state.pendingSHGRegistrations.map((r) =>
-      r.id === regId ? { ...r, status: 'approved' } : r
-      ),
-      shgGroups: [newSHG, ...state.shgGroups],
-      adminStats: {
-        ...state.adminStats,
-        activeSHGs: state.adminStats.activeSHGs + 1,
-        pendingApprovals: Math.max(0, state.adminStats.pendingApprovals - 1)
+  approveSHGRegistration: async (regId) => {
+    try {
+      const token = get().token;
+      const res = await authFetch(`/api/shg/${regId}/approve`, {
+        method: 'PUT'
+      }, token);
+      if (res.ok) {
+        const payload = await res.json();
+        const reg = payload.shg;
+        if (!reg) return;
+
+        const catMap = {
+          'Food & Agriculture': 'food',
+          'Textiles & Weaving': 'textiles',
+          'Crafts & Handicrafts': 'crafts',
+          'Herbal & Wellness': 'food',
+          'Other': 'crafts'
+        };
+        const emojiMap = { food: '🌿', textiles: '🧵', crafts: '🏺' };
+        const cat = catMap[reg.category] || 'crafts';
+
+        const newSHG = {
+          id: reg.id,
+          name: reg.leaderName,
+          shgName: reg.shgName,
+          location: reg.location,
+          phone: reg.phone,
+          email: reg.email,
+          avatar: emojiMap[cat] || '👩‍🌾',
+          products: 0,
+          rating: 0,
+          members: reg.members,
+          kycStatus: 'verified',
+          isActive: true,
+          joinedDate: new Date().toISOString().split('T')[0],
+          bankLinked: true,
+          totalRevenue: 0,
+          category: cat,
+          story: `${reg.leaderName} leads ${reg.shgName}, recently onboarded to Nari Samman.`,
+          aadhaar: reg.aadhaarNumber,
+          gstin: reg.gstNumber,
+          bankAccountNumber: reg.bankAccountNumber,
+          bankIfscCode: reg.bankIfscCode,
+          bankName: reg.bankName,
+          accountHolderName: reg.accountHolderName,
+          upiId: reg.upiId,
+          employees: []
+        };
+
+        set((state) => ({
+          pendingSHGRegistrations: state.pendingSHGRegistrations.map((r) =>
+            r.id === regId ? { ...r, status: 'approved' } : r
+          ),
+          shgGroups: [newSHG, ...state.shgGroups],
+          adminStats: {
+            ...state.adminStats,
+            activeSHGs: state.adminStats.activeSHGs + 1,
+            pendingApprovals: Math.max(0, state.adminStats.pendingApprovals - 1)
+          }
+        }));
       }
-    };
-  }),
+    } catch (e) {
+      console.error('Approve failed:', e);
+    }
+  },
 
   // Admin rejects a pending SHG registration
-  rejectSHGRegistration: (regId, reason) => set((state) => ({
-    pendingSHGRegistrations: state.pendingSHGRegistrations.map((r) =>
-    r.id === regId ? { ...r, status: 'rejected', rejectionReason: reason || 'Rejected by admin' } : r
-    ),
-    adminStats: {
-      ...state.adminStats,
-      pendingApprovals: Math.max(0, state.adminStats.pendingApprovals - 1)
+  rejectSHGRegistration: async (regId, reason) => {
+    try {
+      const token = get().token;
+      const res = await authFetch(`/api/shg/${regId}/reject`, {
+        method: 'PUT'
+      }, token);
+      if (res.ok) {
+        set((state) => ({
+          pendingSHGRegistrations: state.pendingSHGRegistrations.map((r) =>
+            r.id === regId ? { ...r, status: 'rejected', rejectionReason: reason || 'Rejected by admin' } : r
+          ),
+          adminStats: {
+            ...state.adminStats,
+            pendingApprovals: Math.max(0, state.adminStats.pendingApprovals - 1)
+          }
+        }));
+      }
+    } catch (e) {
+      console.error('Reject failed:', e);
     }
-  })),
+  },
 
   toggleSHGStatus: (shgId) => set((state) => ({
     shgGroups: state.shgGroups.map((s) => s.id === shgId ? { ...s, isActive: !s.isActive } : s)
