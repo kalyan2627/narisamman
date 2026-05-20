@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import {
-  View, StyleSheet, ScrollView, TouchableOpacity, Platform, Alert } from
-'react-native';
+  View, StyleSheet, ScrollView, TouchableOpacity, Platform, Alert
+} from
+  'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS, SHADOWS } from '../../theme/colors';
 
-import useStore from '../../store/useStore';import Text from "../../autoTranslation/AutoText";import useAppLanguage from "../../autoTranslation/useAppLanguage";
+import useStore from '../../store/useStore'; import Text from "../../autoTranslation/AutoText"; import useAppLanguage from "../../autoTranslation/useAppLanguage";
 import { ORDER_FLOW_STEPS, getFlowIndex, getVisualOrderStatus, buildReadableTimeline, findDispatchForOrder, PAYMENT_LABELS } from '../../utils/orderWorkflow';
 
 const STATUS_STEPS = ORDER_FLOW_STEPS.map((step) => step.key);
@@ -20,7 +21,8 @@ const STATUS_CONFIG = {
   cancelled: { label: 'Cancelled', emoji: '❌', color: COLORS.error, desc: 'This order was cancelled.' }
 };
 
-export default function OrderDetailScreen({ route, navigation }) {const lang = useAppLanguage();
+export default function OrderDetailScreen({ route, navigation }) {
+  const lang = useAppLanguage();
 
   const routeOrder = route.params?.order;
   const routeOrderId = route.params?.orderId || routeOrder?.id;
@@ -97,29 +99,29 @@ export default function OrderDetailScreen({ route, navigation }) {const lang = u
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}>
-        
+
         {/* Progress Tracker */}
         {order.status !== 'cancelled' &&
-        <View style={styles.section}>
+          <View style={styles.section}>
             <Text style={styles.sectionTitle}>{"Order Progress"}</Text>
             <View style={styles.progressTracker}>
               {STATUS_STEPS.map((step, i) => {
-              const done = i <= stepIndex;
-              const active = i === stepIndex;
-              const cfg = STATUS_CONFIG[step];
-              return (
-                <View key={step} style={styles.progressItem}>
+                const done = i <= stepIndex;
+                const active = i === stepIndex;
+                const cfg = STATUS_CONFIG[step];
+                return (
+                  <View key={step} style={styles.progressItem}>
                     <View style={styles.progressLeft}>
                       <View style={[
-                    styles.progressDot,
-                    done ? { backgroundColor: cfg.color } : styles.progressDotInactive,
-                    active && styles.progressDotActive]
-                    }>
+                        styles.progressDot,
+                        done ? { backgroundColor: cfg.color } : styles.progressDotInactive,
+                        active && styles.progressDotActive]
+                      }>
                         <Text style={styles.progressDotEmoji}>{done ? cfg.emoji : '○'}</Text>
                       </View>
                       {i < STATUS_STEPS.length - 1 &&
-                    <View style={[styles.progressLine, done && i < stepIndex && { backgroundColor: STATUS_CONFIG[STATUS_STEPS[i]].color }]} />
-                    }
+                        <View style={[styles.progressLine, done && i < stepIndex && { backgroundColor: STATUS_CONFIG[STATUS_STEPS[i]].color }]} />
+                      }
                     </View>
                     <View style={styles.progressContent}>
                       <Text style={[styles.progressLabel, active && { color: cfg.color, fontWeight: '700' }]}>
@@ -129,7 +131,7 @@ export default function OrderDetailScreen({ route, navigation }) {const lang = u
                     </View>
                   </View>);
 
-            })}
+              })}
             </View>
           </View>
         }
@@ -155,7 +157,7 @@ export default function OrderDetailScreen({ route, navigation }) {const lang = u
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Items Ordered ({enrichedItems.length})</Text>
           {enrichedItems.map((item, i) =>
-          <View key={i} style={styles.itemCard}>
+            <View key={i} style={styles.itemCard}>
               <View style={styles.itemImgBox}>
                 <Text style={styles.itemEmoji}>{item.emoji}</Text>
               </View>
@@ -177,17 +179,17 @@ export default function OrderDetailScreen({ route, navigation }) {const lang = u
           <Text style={styles.sectionTitle}>{"Price Summary"}</Text>
           <View style={styles.summaryCard}>
             {[
-            { label: 'Item Total', value: `₹${order.total}` },
-            { label: 'Delivery Charge', value: order.total >= 499 ? 'FREE 🎉' : '₹60' },
-            { label: 'Packaging', value: '₹0' }].
-            map((row, i) =>
-            <View key={i} style={styles.summaryRow}>
-                <Text style={styles.summaryLabel}>{row.label}</Text>
-                <Text style={[styles.summaryValue, row.value.includes('FREE') && { color: COLORS.success }]}>
-                  {row.value}
-                </Text>
-              </View>
-            )}
+              { label: 'Item Total', value: `₹${order.total}` },
+              { label: 'Delivery Charge', value: order.total >= 499 ? 'FREE 🎉' : '₹60' },
+              { label: 'Packaging', value: '₹0' }].
+              map((row, i) =>
+                <View key={i} style={styles.summaryRow}>
+                  <Text style={styles.summaryLabel}>{row.label}</Text>
+                  <Text style={[styles.summaryValue, row.value.includes('FREE') && { color: COLORS.success }]}>
+                    {row.value}
+                  </Text>
+                </View>
+              )}
             <View style={styles.summaryDivider} />
             <View style={styles.summaryRow}>
               <Text style={styles.totalLabel}>{"Total Paid"}</Text>
@@ -256,7 +258,7 @@ export default function OrderDetailScreen({ route, navigation }) {const lang = u
         {/* Action Buttons */}
         <View style={styles.actions}>
           {!['delivered', 'cancelled', 'shipped'].includes(order.status) &&
-          <TouchableOpacity onPress={handleCancelRequest} style={styles.cancelBtn}>
+            <TouchableOpacity onPress={handleCancelRequest} style={styles.cancelBtn}>
               <Text style={styles.cancelBtnText}>{"Cancel Order"}</Text>
             </TouchableOpacity>
           }
@@ -267,7 +269,7 @@ export default function OrderDetailScreen({ route, navigation }) {const lang = u
               }
             }}
             style={styles.supportBtn}>
-            
+
             <Text style={styles.supportBtnText}>{"🤝 Need Help?"}</Text>
           </TouchableOpacity>
         </View>
@@ -277,7 +279,7 @@ export default function OrderDetailScreen({ route, navigation }) {const lang = u
 
       {/* Web-safe Cancel Confirm Modal */}
       {showCancelConfirm &&
-      <View style={styles.overlay}>
+        <View style={styles.overlay}>
           <View style={styles.confirmBox}>
             <Text style={styles.confirmEmoji}>⚠️</Text>
             <Text style={styles.confirmTitle}>{"Cancel Order?"}</Text>
@@ -287,9 +289,9 @@ export default function OrderDetailScreen({ route, navigation }) {const lang = u
             </Text>
             <View style={styles.confirmBtns}>
               <TouchableOpacity
-              onPress={() => setShowCancelConfirm(false)}
-              style={styles.keepBtn}>
-              
+                onPress={() => setShowCancelConfirm(false)}
+                style={styles.keepBtn}>
+
                 <Text style={styles.keepBtnText}>{"Keep Order"}</Text>
               </TouchableOpacity>
               <TouchableOpacity onPress={confirmCancel} style={styles.confirmCancelBtn}>
@@ -302,7 +304,7 @@ export default function OrderDetailScreen({ route, navigation }) {const lang = u
 
       {/* Cancel Success Banner */}
       {showCancelSuccess &&
-      <View style={styles.overlay}>
+        <View style={styles.overlay}>
           <View style={styles.confirmBox}>
             <Text style={styles.confirmEmoji}>✅</Text>
             <Text style={styles.confirmTitle}>{"Cancellation Submitted"}</Text>

@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import {
-  View, StyleSheet, ScrollView, TouchableOpacity, Platform } from
-'react-native';
+  View, StyleSheet, ScrollView, TouchableOpacity, Platform
+} from
+  'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS, SHADOWS } from '../../theme/colors';
-import useStore from '../../store/useStore';import Text from "../../autoTranslation/AutoText";import useAppLanguage from "../../autoTranslation/useAppLanguage";
+import useStore from '../../store/useStore'; import Text from "../../autoTranslation/AutoText"; import useAppLanguage from "../../autoTranslation/useAppLanguage";
 import { getVisualOrderStatus } from '../../utils/orderWorkflow';
 
 
@@ -63,7 +64,7 @@ function OrderCard({ order, onPress }) {
       <LinearGradient
         colors={[COLORS.saffron + '15', COLORS.gold + '10']}
         style={styles.ctaBar}>
-        
+
         <Text style={styles.ctaText}>{"View Details"} →</Text>
       </LinearGradient>
     </TouchableOpacity>);
@@ -71,13 +72,13 @@ function OrderCard({ order, onPress }) {
 }
 
 export default function OrderHistoryScreen({ navigation }) {
-  const { orders } = useStore();const lang = useAppLanguage();
+  const { orders } = useStore(); const lang = useAppLanguage();
 
   const [activeFilter, setActiveFilter] = useState('all');
 
   const goBack = () => {
-    if (navigation.canGoBack()) navigation.goBack();else
-    navigation.navigate('Profile');
+    if (navigation.canGoBack()) navigation.goBack(); else
+      navigation.navigate('Profile');
   };
 
   const filteredOrders = orders.filter((o) => {
@@ -105,13 +106,13 @@ export default function OrderHistoryScreen({ navigation }) {
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.filterRow}
         style={styles.filterScroll}>
-        
+
         {FILTER_TABS.map((tab) =>
-        <TouchableOpacity
-          key={tab}
-          onPress={() => setActiveFilter(tab)}
-          style={[styles.filterTab, activeFilter === tab && styles.filterTabActive]}>
-          
+          <TouchableOpacity
+            key={tab}
+            onPress={() => setActiveFilter(tab)}
+            style={[styles.filterTab, activeFilter === tab && styles.filterTabActive]}>
+
             <Text style={[styles.filterTabText, activeFilter === tab && styles.filterTabTextActive]}>
               {FILTER_LABEL_MAP[tab]}
             </Text>
@@ -121,28 +122,28 @@ export default function OrderHistoryScreen({ navigation }) {
 
       {/* Orders List */}
       {filteredOrders.length === 0 ?
-      <View style={styles.emptyContainer}>
+        <View style={styles.emptyContainer}>
           <Text style={styles.emptyEmoji}>📦</Text>
           <Text style={styles.emptyTitle}>{"No orders here"}</Text>
           <Text style={styles.emptySubtitle}>
             {activeFilter === 'all' ? "Your orders will appear here once you shop" :
 
-          `${"No orders here"}`}
+              `${"No orders here"}`}
           </Text>
         </View> :
 
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.list}
-        showsVerticalScrollIndicator={false}>
-        
-          {filteredOrders.map((order) =>
-        <OrderCard
-          key={order.id}
-          order={order}
-          onPress={(o) => navigation.navigate('OrderDetail', { orderId: o.id, order: o })} />
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={styles.list}
+          showsVerticalScrollIndicator={false}>
 
-        )}
+          {filteredOrders.map((order) =>
+            <OrderCard
+              key={order.id}
+              order={order}
+              onPress={(o) => navigation.navigate('OrderDetail', { orderId: o.id, order: o })} />
+
+          )}
           <View style={{ height: 30 }} />
         </ScrollView>
       }

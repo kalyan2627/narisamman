@@ -8,8 +8,16 @@ import { imgSrc } from '../../utils/imageSource';import Text from "../../autoTra
 
 export default function ProductApprovalScreen({ navigation }) {const lang = useAppLanguage();
 
-  const { pendingProducts, approveProduct, rejectProduct } = useStore();
+  const { pendingProducts, approveProduct, rejectProduct, fetchPendingProducts } = useStore();
   const [confirm, setConfirm] = useState(null); // { type: 'approve'|'reject', product }
+
+  React.useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      fetchPendingProducts();
+    });
+    fetchPendingProducts();
+    return unsubscribe;
+  }, [navigation]);
 
   const handleAction = (type, product) => setConfirm({ type, product });
 

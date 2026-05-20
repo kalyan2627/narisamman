@@ -7,8 +7,20 @@ import { imgSrc } from '../../utils/imageSource';import Text from "../../autoTra
 
 export default function ManageProductsScreen({ navigation }) {const lang = useAppLanguage();
 
-  const { vendorProducts, removeVendorProduct } = useStore();
+  const { vendorProducts, removeVendorProduct, fetchVendorProducts, vendorProfile } = useStore();
   const [deleteConfirm, setDeleteConfirm] = useState(null);
+
+  React.useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      if (vendorProfile && vendorProfile.id) {
+        fetchVendorProducts(vendorProfile.id);
+      }
+    });
+    if (vendorProfile && vendorProfile.id) {
+      fetchVendorProducts(vendorProfile.id);
+    }
+    return unsubscribe;
+  }, [navigation, vendorProfile]);
 
   return (
     <View style={styles.container}>
@@ -48,9 +60,15 @@ export default function ManageProductsScreen({ navigation }) {const lang = useAp
                 <Text style={styles.unit}>{item.unit}</Text>
                 <Text style={styles.price}>₹{item.price}</Text>
                 <View style={styles.statsRow}>
-                  <Text style={styles.stat}>⭐ {item.rating}</Text>
+                  <Text style={styles.stat}>⭐ {item.rating || 0}</Text>
                   <Text style={styles.stat}>📦 {item.stock} left</Text>
-                  <View style={styles.liveBadge}><Text style={styles.liveText}>{"✓ Live"}</Text></View>
+                  {(!item.status || item.status.toUpperCase() === 'APPROVED' || item.status.toUpperCase() === 'ACCEPTED') ? (
+                    <View style={styles.liveBadge}><Text style={styles.liveText}>{"✓ Accepted"}</Text></View>
+                  ) : item.status.toUpperCase() === 'PENDING' ? (
+                    <View style={styles.pendingBadge}><Text style={styles.pendingText}>{"⏳ Pending"}</Text></View>
+                  ) : (
+                    <View style={styles.rejectedBadge}><Text style={styles.rejectedText}>{"✗ Rejected"}</Text></View>
+                  )}
                 </View>
               </View>
               <View style={styles.actions}>
@@ -114,6 +132,10 @@ const styles = StyleSheet.create({
   stat: { fontSize: 11, color: COLORS.textSecondary },
   liveBadge: { backgroundColor: COLORS.success + '20', borderRadius: 20, paddingHorizontal: 8, paddingVertical: 2 },
   liveText: { fontSize: 10, color: COLORS.success, fontWeight: '700' },
+  pendingBadge: { backgroundColor: COLORS.warning + '20', borderRadius: 20, paddingHorizontal: 8, paddingVertical: 2 },
+  pendingText: { fontSize: 10, color: COLORS.warning, fontWeight: '700' },
+  rejectedBadge: { backgroundColor: COLORS.error + '20', borderRadius: 20, paddingHorizontal: 8, paddingVertical: 2 },
+  rejectedText: { fontSize: 10, color: COLORS.error, fontWeight: '700' },
   actions: { justifyContent: 'center', gap: 8 },
   editBtn: { width: 36, height: 36, borderRadius: 10, backgroundColor: COLORS.info + '15', alignItems: 'center', justifyContent: 'center' },
   editText: { fontSize: 16 },

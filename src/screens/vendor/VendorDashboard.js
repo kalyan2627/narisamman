@@ -14,7 +14,19 @@ const STATUS_COLORS = {
 };
 
 export default function VendorDashboard({ navigation }) {
-  const { vendorProfile, vendorOrders, vendorProducts, shgGroups, vendorNotifications } = useStore();const lang = useAppLanguage();
+  const { vendorProfile, vendorOrders, vendorProducts, shgGroups, vendorNotifications, fetchVendorProducts } = useStore();const lang = useAppLanguage();
+
+  React.useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      if (vendorProfile && vendorProfile.id) {
+        fetchVendorProducts(vendorProfile.id);
+      }
+    });
+    if (vendorProfile && vendorProfile.id) {
+      fetchVendorProducts(vendorProfile.id);
+    }
+    return unsubscribe;
+  }, [navigation, vendorProfile]);
 
 
   // Find this vendor's SHG group to get employees
@@ -173,8 +185,17 @@ export default function VendorDashboard({ navigation }) {
               <Text style={styles.productName} numberOfLines={2}>{p.name}</Text>
               <Text style={styles.productPrice}>₹{p.price}</Text>
               <View style={styles.productMeta}>
-                <Text style={styles.productRating}>⭐ {p.rating}</Text>
+                <Text style={styles.productRating}>⭐ {p.rating || 0}</Text>
                 <Text style={styles.productStock}>{p.stock} left</Text>
+              </View>
+              <View style={styles.badgeContainer}>
+                {(!p.status || p.status.toUpperCase() === 'APPROVED' || p.status.toUpperCase() === 'ACCEPTED') ? (
+                  <View style={styles.liveBadge}><Text style={styles.liveText}>{"✓ Accepted"}</Text></View>
+                ) : p.status.toUpperCase() === 'PENDING' ? (
+                  <View style={styles.pendingBadge}><Text style={styles.pendingText}>{"⏳ Pending"}</Text></View>
+                ) : (
+                  <View style={styles.rejectedBadge}><Text style={styles.rejectedText}>{"✗ Rejected"}</Text></View>
+                )}
               </View>
             </View>
           )}
@@ -281,6 +302,13 @@ const styles = StyleSheet.create({
   productMeta: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 8, paddingVertical: 6 },
   productRating: { fontSize: 11, color: COLORS.textSecondary },
   productStock: { fontSize: 11, color: COLORS.textMuted },
+  badgeContainer: { paddingHorizontal: 8, paddingBottom: 8, flexDirection: 'row' },
+  liveBadge: { backgroundColor: COLORS.success + '20', borderRadius: 20, paddingHorizontal: 6, paddingVertical: 2 },
+  liveText: { fontSize: 9, color: COLORS.success, fontWeight: '700' },
+  pendingBadge: { backgroundColor: COLORS.warning + '20', borderRadius: 20, paddingHorizontal: 6, paddingVertical: 2 },
+  pendingText: { fontSize: 9, color: COLORS.warning, fontWeight: '700' },
+  rejectedBadge: { backgroundColor: COLORS.error + '20', borderRadius: 20, paddingHorizontal: 6, paddingVertical: 2 },
+  rejectedText: { fontSize: 9, color: COLORS.error, fontWeight: '700' },
 
   // Support banner
   supportBanner: { marginHorizontal: 16, borderRadius: 20, padding: 16, flexDirection: 'row', gap: 12, alignItems: 'flex-start', borderWidth: 1, borderColor: COLORS.green + '30' },

@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import {
   View, StyleSheet, ScrollView,
-  TouchableOpacity } from
-'react-native';
+  TouchableOpacity
+} from
+  'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS, SHADOWS } from '../../theme/colors';
 
-import useStore from '../../store/useStore';import Text from "../../autoTranslation/AutoText";import TextInput from "../../autoTranslation/AutoTextInput";import useAppLanguage from "../../autoTranslation/useAppLanguage";
+import useStore from '../../store/useStore'; import Text from "../../autoTranslation/AutoText"; import TextInput from "../../autoTranslation/AutoTextInput"; import useAppLanguage from "../../autoTranslation/useAppLanguage";
 
 const STATUS_CONFIG = {
   pending: { label: 'Pending', color: COLORS.warning, bg: COLORS.warning + '20', emoji: '🕐' },
@@ -20,7 +21,8 @@ const STATUS_CONFIG = {
 
 const FILTER_TABS = ['All', 'Active', 'Logistics', 'Shipped', 'Delivered'];
 
-export default function OrdersScreen({ navigation }) {const lang = useAppLanguage();
+export default function OrdersScreen({ navigation }) {
+  const lang = useAppLanguage();
 
   const { vendorOrders, orders, user, getTotalOrders } = useStore();
   const [search, setSearch] = useState('');
@@ -28,42 +30,42 @@ export default function OrdersScreen({ navigation }) {const lang = useAppLanguag
 
   // Merge consumer orders + vendor orders for admin view
   const allOrders = [
-  ...orders.map((o) => ({
-    id: o.id,
-    buyer: user?.name || 'Consumer',
-    items: o.items?.length ?? 1,
-    amount: o.total,
-    status: o.status,
-    paymentStatus: o.paymentStatus,
-    date: o.date,
-    address: o.address,
-    tracking: o.tracking,
-    source: 'consumer'
-  })),
-  ...vendorOrders.map((o) => ({
-    id: o.id,
-    buyer: o.buyer,
-    items: o.qty,
-    amount: o.amount,
-    status: o.status,
-    paymentStatus: o.paymentStatus,
-    date: o.date,
-    address: '—',
-    tracking: o.tracking,
-    source: 'vendor',
-    item: o.item,
-    consumerOrderId: o.consumerOrderId
-  }))].
-  sort((a, b) => new Date(b.date) - new Date(a.date));
+    ...orders.map((o) => ({
+      id: o.id,
+      buyer: user?.name || 'Consumer',
+      items: o.items?.length ?? 1,
+      amount: o.total,
+      status: o.status,
+      paymentStatus: o.paymentStatus,
+      date: o.date,
+      address: o.address,
+      tracking: o.tracking,
+      source: 'consumer'
+    })),
+    ...vendorOrders.map((o) => ({
+      id: o.id,
+      buyer: o.buyer,
+      items: o.qty,
+      amount: o.amount,
+      status: o.status,
+      paymentStatus: o.paymentStatus,
+      date: o.date,
+      address: '—',
+      tracking: o.tracking,
+      source: 'vendor',
+      item: o.item,
+      consumerOrderId: o.consumerOrderId
+    }))].
+    sort((a, b) => new Date(b.date) - new Date(a.date));
 
   const filtered = allOrders.filter((o) => {
     const matchSearch = !search ||
-    o.id.toLowerCase().includes(search.toLowerCase()) ||
-    o.buyer.toLowerCase().includes(search.toLowerCase());
+      o.id.toLowerCase().includes(search.toLowerCase()) ||
+      o.buyer.toLowerCase().includes(search.toLowerCase());
     const matchFilter = activeFilter === 'All' ||
-    (activeFilter === 'Active' && ['pending', 'confirmed', 'processing', 'packed'].includes(o.status)) ||
-    (activeFilter === 'Logistics' && o.status === 'sent_to_logistics') ||
-    o.status.toLowerCase() === activeFilter.toLowerCase();
+      (activeFilter === 'Active' && ['pending', 'confirmed', 'processing', 'packed'].includes(o.status)) ||
+      (activeFilter === 'Logistics' && o.status === 'sent_to_logistics') ||
+      o.status.toLowerCase() === activeFilter.toLowerCase();
     return matchSearch && matchFilter;
   });
 
@@ -91,20 +93,20 @@ export default function OrdersScreen({ navigation }) {const lang = useAppLanguag
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}>
-        
+
         {/* Stats Bar */}
         <LinearGradient colors={['#0F1822', '#1C2437']} style={styles.statsBar}>
           {[
-          { label: 'Total', value: summary.total, color: COLORS.gold },
-          { label: 'Active', value: summary.pending, color: COLORS.warning },
-          { label: 'Shipped', value: summary.shipped, color: COLORS.green },
-          { label: 'Delivered', value: summary.delivered, color: COLORS.success }].
-          map((s, i) =>
-          <View key={i} style={styles.statItem}>
-              <Text style={[styles.statValue, { color: s.color }]}>{s.value}</Text>
-              <Text style={styles.statLabel}>{s.label}</Text>
-            </View>
-          )}
+            { label: 'Total', value: summary.total, color: COLORS.gold },
+            { label: 'Active', value: summary.pending, color: COLORS.warning },
+            { label: 'Shipped', value: summary.shipped, color: COLORS.green },
+            { label: 'Delivered', value: summary.delivered, color: COLORS.success }].
+            map((s, i) =>
+              <View key={i} style={styles.statItem}>
+                <Text style={[styles.statValue, { color: s.color }]}>{s.value}</Text>
+                <Text style={styles.statLabel}>{s.label}</Text>
+              </View>
+            )}
         </LinearGradient>
 
         {/* Search */}
@@ -116,9 +118,9 @@ export default function OrdersScreen({ navigation }) {const lang = useAppLanguag
             placeholderTextColor={COLORS.textMuted}
             value={search}
             onChangeText={setSearch} />
-          
+
           {search.length > 0 &&
-          <TouchableOpacity onPress={() => setSearch('')}>
+            <TouchableOpacity onPress={() => setSearch('')}>
               <Text style={styles.clearSearch}>✕</Text>
             </TouchableOpacity>
           }
@@ -129,13 +131,13 @@ export default function OrdersScreen({ navigation }) {const lang = useAppLanguag
           horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.filterRow}>
-          
+
           {FILTER_TABS.map((tab) =>
-          <TouchableOpacity
-            key={tab}
-            onPress={() => setActiveFilter(tab)}
-            style={[styles.filterTab, activeFilter === tab && styles.filterTabActive]}>
-            
+            <TouchableOpacity
+              key={tab}
+              onPress={() => setActiveFilter(tab)}
+              style={[styles.filterTab, activeFilter === tab && styles.filterTabActive]}>
+
               <Text style={[styles.filterTabText, activeFilter === tab && styles.filterTabTextActive]}>
                 {tab}
               </Text>
@@ -149,27 +151,27 @@ export default function OrdersScreen({ navigation }) {const lang = useAppLanguag
             Showing {filtered.length} of {allOrders.length} orders
           </Text>
           {filtered.length === 0 ?
-          <View style={styles.empty}>
+            <View style={styles.empty}>
               <Text style={styles.emptyEmoji}>📭</Text>
               <Text style={styles.emptyText}>{"No orders found"}</Text>
             </View> :
 
-          filtered.map((order, i) => {
-            const cfg = STATUS_CONFIG[order.status] || STATUS_CONFIG.pending;
-            return (
-              <TouchableOpacity
-                key={`${order.source}_${order.id}`}
-                style={[styles.card, i > 0 && { marginTop: 10 }]}
-                activeOpacity={0.88}
-                onPress={() => navigation.navigate('AdminOrderDetail', { orderId: order.id, source: order.source })}>
+            filtered.map((order, i) => {
+              const cfg = STATUS_CONFIG[order.status] || STATUS_CONFIG.pending;
+              return (
+                <TouchableOpacity
+                  key={`${order.source}_${order.id}`}
+                  style={[styles.card, i > 0 && { marginTop: 10 }]}
+                  activeOpacity={0.88}
+                  onPress={() => navigation.navigate('AdminOrderDetail', { orderId: order.id, source: order.source })}>
                   <View style={styles.cardRow}>
                     <View style={styles.cardLeft}>
                       <Text style={styles.orderId}>#{order.id}</Text>
                       <Text style={styles.buyer}>👤 {order.buyer}</Text>
                       <Text style={styles.date}>📅 {order.date}</Text>
                       {order.address !== '—' &&
-                    <Text style={styles.address} numberOfLines={1}>📍 {order.address}</Text>
-                    }
+                        <Text style={styles.address} numberOfLines={1}>📍 {order.address}</Text>
+                      }
                       <View style={styles.sourceBadge}>
                         <Text style={styles.sourceText}>
                           {order.source === 'consumer' ? '🛒 Consumer Order' : '🏪 Vendor Order'}
@@ -186,14 +188,14 @@ export default function OrdersScreen({ navigation }) {const lang = useAppLanguag
                     </View>
                   </View>
                   {order.tracking &&
-                <View style={styles.trackingBar}>
+                    <View style={styles.trackingBar}>
                       <Text style={styles.trackingText}>🚦 {order.tracking}</Text>
                     </View>
-                }
+                  }
                   <Text style={styles.openText}>{"Open Details →"}</Text>
                 </TouchableOpacity>);
 
-          })
+            })
           }
         </View>
 
