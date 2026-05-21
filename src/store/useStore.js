@@ -1,6 +1,10 @@
 import { create } from 'zustand';
 import * as SecureStore from 'expo-secure-store';
 import { publicFetch, authFetch } from '../utils/api';
+import { Platform } from 'react-native';
+
+const API_BASE = Platform.OS === 'android' ? 'http://10.0.2.2:9090/api' : 'http://localhost:9090/api';
+
 
 // ─── Local Asset Images ───────────────────────────────────────────────────────
 export const IMAGES = {
@@ -219,9 +223,7 @@ const useStore = create((set, get) => ({
     email: 'aarav@example.com',
     phone: '+91 98765 43210',
     avatar: '👤',
-    addresses: [
-    { id: 'addr1', label: 'Home', line: '12 Park Street, Kolkata 700016', default: true },
-    { id: 'addr2', label: 'Office', line: 'Salt Lake Sector V, Kolkata 700091', default: false }]
+    addresses: [] // Loaded from backend via fetchAddresses
 
   },
 
@@ -240,13 +242,13 @@ const useStore = create((set, get) => ({
   },
 
   // Products
-  products: MOCK_PRODUCTS,
+  products: [],
   artisans: MOCK_ARTISANS,
 
   // Consumer State
   cart: [],
   wishlist: [],
-  orders: MOCK_ORDERS,
+  orders: [],
   searchQuery: '',
   selectedCategory: 'all',
 
@@ -427,39 +429,87 @@ const useStore = create((set, get) => ({
       }
       return { currentRole: role, isLoggedIn: true, ...tokenState };
     });
+  // Called from login screens — sets role + updates profile with credentials
+  loginUser: (role, credentials) => {
+    set((state) => {
+      if (role === 'consumer') {
+        return {
+          currentRole: 'consumer',
+          isLoggedIn: true,
+          user: { ...state.user, email: credentials.email || state.user.email }
+        };
+      } else if (role === 'vendor') {
+        return {
+          currentRole: 'vendor',
+          isLoggedIn: true,
+          vendorProfile: { ...state.vendorProfile, email: credentials.email || state.vendorProfile.email }
+        };
+      } else if (role === 'admin') {
+        return {
+          currentRole: 'admin',
+          isLoggedIn: true,
+          adminProfile: { ...state.adminProfile, email: credentials.email || state.adminProfile.email }
+        };
+      }
+      return { currentRole: role, isLoggedIn: true };
+    });
+
+    // Trigger API fetching asynchronously
+    const store = get();
+    if (role === 'admin') {
+      store.fetchPendingProducts();
+      store.fetchProducts();
+    } else if (role === 'vendor') {
+      store.fetchVendorProducts(get().vendorProfile.id);
+    } else if (role === 'consumer') {
+      store.fetchProducts();
+      store.fetchOrders();
+    }
   },
 
   // Called from registration screens — sets role + creates new profile data
-  registerUser: (role, data) => set((state) => {
-    if (role === 'consumer') {
-      return {
-        currentRole: 'consumer',
-        isLoggedIn: true,
-        user: {
-          ...state.user,
-          name: data.name || state.user.name,
-          email: data.email || state.user.email,
-          phone: data.phone || state.user.phone
-        }
-      };
-    } else if (role === 'vendor') {
-      return {
-        currentRole: 'vendor',
-        isLoggedIn: true,
-        vendorProfile: {
-          ...state.vendorProfile,
-          name: data.name || state.vendorProfile.name,
-          shgName: data.shgName || state.vendorProfile.shgName,
-          email: data.email || state.vendorProfile.email,
-          phone: data.phone || state.vendorProfile.phone,
-          location: data.location || state.vendorProfile.location,
-          kycStatus: 'pending',
-          bankLinked: false
-        }
-      };
+  registerUser: (role, data) => {
+    set((state) => {
+      if (role === 'consumer') {
+        return {
+          currentRole: 'consumer',
+          isLoggedIn: true,
+          user: {
+            ...state.user,
+            name: data.name || state.user.name,
+            email: data.email || state.user.email,
+            phone: data.phone || state.user.phone
+          }
+        };
+      } else if (role === 'vendor') {
+        return {
+          currentRole: 'vendor',
+          isLoggedIn: true,
+          vendorProfile: {
+            ...state.vendorProfile,
+            name: data.name || state.vendorProfile.name,
+            shgName: data.shgName || state.vendorProfile.shgName,
+            email: data.email || state.vendorProfile.email,
+            phone: data.phone || state.vendorProfile.phone,
+            location: data.location || state.vendorProfile.location,
+            kycStatus: 'pending',
+            bankLinked: false
+          }
+        };
+      }
+      return { currentRole: role, isLoggedIn: true };
+    });
+
+    const store = get();
+    if (role === 'vendor') {
+      store.fetchVendorProducts(get().vendorProfile.id);
+    } else if (role === 'consumer') {
+      store.fetchProducts();
+      store.fetchOrders();
+      store.fetchWishlist();
+      store.fetchAddresses();
     }
-    return { currentRole: role, isLoggedIn: true };
-  }),
+  },
 
   // Profile Updates
   updateUserProfile: async (updates) => {
@@ -902,12 +952,109 @@ const useStore = create((set, get) => ({
   },
   getCartCount: () => get().cart.reduce((sum, i) => sum + i.qty, 0),
 
-  // Wishlist
-  toggleWishlist: (product) => set((state) => {
-    const exists = state.wishlist.find((i) => i.id === product.id);
-    return { wishlist: exists ? state.wishlist.filter((i) => i.id !== product.id) : [...state.wishlist, product] };
-  }),
-  isWishlisted: (productId) => get().wishlist.some((i) => i.id === productId),
+  // Wishlist — synced with real backend
+  fetchWishlist: async () => {
+    try {
+      const userId = get().user.id;
+      const response = await fetch(`${API_BASE}/wishlist?userId=${userId}`);
+      if (response.ok) {
+        const data = await response.json();
+        set({ wishlist: data });
+      }
+    } catch (error) {
+      console.warn('Backend offline, could not fetch wishlist:', error);
+    }
+  },
+
+  toggleWishlist: async (product) => {
+    const state = get();
+    const userId = state.user.id;
+    // Use numeric db id if available (from backend product), else use string id
+    const productId = product.id;
+    const exists = state.wishlist.find((i) => String(i.id) === String(productId));
+
+    if (exists) {
+      // Optimistically remove
+      set((s) => ({ wishlist: s.wishlist.filter((i) => String(i.id) !== String(productId)) }));
+      try {
+        await fetch(`${API_BASE}/wishlist?userId=${userId}&productId=${productId}`, { method: 'DELETE' });
+      } catch (error) {
+        // Rollback on failure
+        set((s) => ({ wishlist: [...s.wishlist, product] }));
+        console.warn('Failed to remove from wishlist:', error);
+      }
+    } else {
+      // Optimistically add
+      set((s) => ({ wishlist: [...s.wishlist, product] }));
+      try {
+        await fetch(`${API_BASE}/wishlist?userId=${userId}&productId=${productId}`, { method: 'POST' });
+      } catch (error) {
+        // Rollback on failure
+        set((s) => ({ wishlist: s.wishlist.filter((i) => String(i.id) !== String(productId)) }));
+        console.warn('Failed to add to wishlist:', error);
+      }
+    }
+  },
+  isWishlisted: (productId) => get().wishlist.some((i) => String(i.id) === String(productId)),
+
+  // Address Book — synced with real backend
+  fetchAddresses: async () => {
+    try {
+      const userId = get().user.id;
+      const response = await fetch(`${API_BASE}/addresses?userId=${userId}`);
+      if (response.ok) {
+        const data = await response.json();
+        set((state) => ({ user: { ...state.user, addresses: data } }));
+      }
+    } catch (error) {
+      console.warn('Backend offline, could not fetch addresses:', error);
+    }
+  },
+
+  addAddress: async (address) => {
+    try {
+      const userId = get().user.id;
+      const payload = { ...address, userId };
+      const response = await fetch(`${API_BASE}/addresses`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      if (response.ok) {
+        await get().fetchAddresses(); // Refresh from backend
+      }
+    } catch (error) {
+      console.warn('Failed to add address:', error);
+    }
+  },
+
+  updateAddress: async (id, updates) => {
+    try {
+      const response = await fetch(`${API_BASE}/addresses/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updates)
+      });
+      if (response.ok) {
+        await get().fetchAddresses();
+      }
+    } catch (error) {
+      console.warn('Failed to update address:', error);
+    }
+  },
+
+  deleteAddress: async (id) => {
+    // Optimistically remove
+    set((state) => ({
+      user: { ...state.user, addresses: state.user.addresses.filter((a) => a.id !== id) }
+    }));
+    try {
+      await fetch(`${API_BASE}/addresses/${id}`, { method: 'DELETE' });
+    } catch (error) {
+      console.warn('Failed to delete address:', error);
+      await get().fetchAddresses(); // Re-sync on error
+    }
+  },
 
   // Search & Filter
   setSearch: (query) => set({ searchQuery: query }),
@@ -927,17 +1074,30 @@ const useStore = create((set, get) => ({
   // On 'delivered': paymentStatus on consumer order → 'paid', vendor order → 'pending_payment'
   //   (consumer pays cash on delivery; platform marks as received)
   // Vendor requests payout → admin sees request → admin pays → vendor gets notified → shows in earnings
-  placeOrder: (address) => set((state) => {
+  fetchOrders: async () => {
+    try {
+      const response = await fetch(`${API_BASE}/orders?userId=${get().user.id}`);
+      if (response.ok) {
+        const data = await response.json();
+        set({ orders: data });
+      }
+    } catch (error) {
+      console.warn('Backend offline, could not fetch orders:', error);
+    }
+  },
+
+  placeOrder: async (address) => {
+    const state = get();
     const orderId = `ord${Date.now()}`;
     const orderDate = new Date().toISOString().split('T')[0];
     const orderTotal = state.cart.reduce((sum, i) => sum + i.price * i.qty, 0);
 
     // Consumer order — starts as confirmed, payment pending (COD model)
     const newOrder = {
-      id: orderId,
+      orderId: orderId,
       date: orderDate,
       status: 'confirmed',
-      paymentStatus: 'pending', // consumer pays on delivery
+      paymentStatus: 'pending',
       items: state.cart.map((i) => ({
         productId: i.id, qty: i.qty, name: i.name,
         price: i.price, unit: i.unit, image: i.image, emoji: i.emoji
@@ -945,8 +1105,22 @@ const useStore = create((set, get) => ({
       total: orderTotal,
       address,
       tracking: ORDER_TRACKING_MESSAGES.confirmed,
-      trackingTimeline: [makeTrackingEvent('confirmed', 'Order Confirmed', ORDER_TRACKING_MESSAGES.confirmed, 'System')]
+      userId: state.user.id
     };
+
+    try {
+      const response = await fetch(`${API_BASE}/orders`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newOrder)
+      });
+      if (response.ok) {
+        set({ cart: [] });
+        await get().fetchOrders();
+      }
+    } catch (error) {
+      console.error('Error placing order:', error);
+    }
 
     // Mirror as vendor order(s) — vendor sees it as 'confirmed'
     const newVendorOrders = state.cart.map((i, idx) => ({
@@ -955,8 +1129,8 @@ const useStore = create((set, get) => ({
       item: i.name,
       qty: i.qty,
       amount: i.price * i.qty,
-      status: 'confirmed', // vendor starts from confirmed
-      paymentStatus: 'pending', // payment pending until delivery + admin payout
+      status: 'confirmed',
+      paymentStatus: 'pending',
       date: orderDate,
       consumerOrderId: orderId,
       productId: i.id,
@@ -965,16 +1139,14 @@ const useStore = create((set, get) => ({
       trackingTimeline: [makeTrackingEvent('confirmed', 'Order Confirmed', ORDER_TRACKING_MESSAGES.confirmed, 'System')]
     }));
 
-    return {
-      orders: [newOrder, ...state.orders],
-      cart: [],
-      vendorOrders: [...newVendorOrders, ...state.vendorOrders],
+    set((s) => ({
+      vendorOrders: [...newVendorOrders, ...s.vendorOrders],
       adminStats: {
-        ...state.adminStats,
-        totalRevenue: state.adminStats.totalRevenue + orderTotal
+        ...s.adminStats,
+        totalRevenue: s.adminStats.totalRevenue + orderTotal
       }
-    };
-  }),
+    }));
+  },
 
   // Vendor updates order status — syncs back to consumer order
   // Workflow before logistics: confirmed → packed. Logistics owns shipped → delivered.
@@ -1218,88 +1390,263 @@ const useStore = create((set, get) => ({
   })),
 
   // ─── Product Management ────────────────────────────────────────────────────
-  addProductToPending: (formData) => set((state) => {
-    const newProduct = {
-      id: `pending_${Date.now()}`,
-      name: formData.name,
-      category: formData.category,
-      price: Number(formData.price),
-      mrp: Number(formData.mrp) || Number(formData.price),
-      unit: formData.unit,
-      description: formData.description,
-      stock: Number(formData.stock) || 10,
-      tags: formData.tags ? formData.tags.split(',').map((t) => t.trim()).filter(Boolean) : [],
-      emoji: formData.category === 'food' ? '🍯' : formData.category === 'textiles' ? '🧵' : '🏺',
-      image: formData.image || null,
-      rating: 0,
-      reviews: 0,
-      artisanId: state.vendorProfile.id,
-      status: 'pending',
-      badge: null
-    };
-    return {
-      pendingProducts: [newProduct, ...state.pendingProducts],
-      adminStats: {
-        ...state.adminStats,
-        pendingApprovals: state.adminStats.pendingApprovals + 1
+  // Backend API Sync Actions
+  fetchProducts: async () => {
+    try {
+      const response = await fetch(`${API_BASE}/products?status=APPROVED`);
+      if (response.ok) {
+        const data = await response.json();
+        set({ products: data });
       }
-    };
-  }),
+    } catch (error) {
+      console.warn('Backend offline, using local mock data for approved products:', error);
+      set({ products: [] });
+    }
+  },
 
-  removeVendorProduct: (productId) => set((state) => ({
-    vendorProducts: state.vendorProducts.filter((p) => p.id !== productId)
-  })),
+  fetchPendingProducts: async () => {
+    try {
+      const response = await fetch(`${API_BASE}/products?status=PENDING`);
+      if (response.ok) {
+        const data = await response.json();
+        set((state) => ({
+          pendingProducts: data,
+          adminStats: {
+            ...state.adminStats,
+            pendingApprovals: data.length
+          }
+        }));
+      }
+    } catch (error) {
+      console.warn('Backend offline, using local mock data for pending products:', error);
+    }
+  },
 
-  updateVendorProduct: (productId, formData) => set((state) => {
-    const currentProduct = state.vendorProducts.find((p) => p.id === productId);
-    if (!currentProduct) return {};
+  fetchVendorProducts: async (artisanId) => {
+    try {
+      const response = await fetch(`${API_BASE}/products?artisanId=${artisanId}`);
+      if (response.ok) {
+        const data = await response.json();
+        set({ vendorProducts: data });
+      }
+    } catch (error) {
+      console.warn('Backend offline, using local mock data for vendor products:', error);
+    }
+  },
 
-    const sellingPrice = Number(formData.price);
-    const mrp = Number(formData.mrp) || sellingPrice;
-    const stock = formData.stock === '' || formData.stock === undefined || formData.stock === null
-      ? currentProduct.stock
-      : Number(formData.stock);
+  addProductToPending: async (formData) => {
+    try {
+      const response = await fetch(`${API_BASE}/products`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: formData.name,
+          category: formData.category,
+          price: Number(formData.price),
+          mrp: Number(formData.mrp) || Number(formData.price),
+          unit: formData.unit,
+          description: formData.description,
+          stock: Number(formData.stock) || 10,
+          tags: formData.tags ? formData.tags.split(',').map((t) => t.trim()).filter(Boolean) : [],
+          emoji: formData.category === 'food' ? '🍯' : formData.category === 'textiles' ? '🧵' : '🏺',
+          image: formData.image || null,
+          artisanId: get().vendorProfile.id,
+          certifications: formData.certifications || {}
+        })
+      });
+      if (response.ok) {
+        await get().fetchPendingProducts();
+        await get().fetchVendorProducts(get().vendorProfile.id);
+      }
+    } catch (error) {
+      console.error('Error adding product:', error);
+      // Fallback
+      set((state) => {
+        const newProduct = {
+          id: `pending_${Date.now()}`,
+          name: formData.name,
+          category: formData.category,
+          price: Number(formData.price),
+          mrp: Number(formData.mrp) || Number(formData.price),
+          unit: formData.unit,
+          description: formData.description,
+          stock: Number(formData.stock) || 10,
+          tags: formData.tags ? formData.tags.split(',').map((t) => t.trim()).filter(Boolean) : [],
+          emoji: formData.category === 'food' ? '🍯' : formData.category === 'textiles' ? '🧵' : '🏺',
+          image: formData.image || null,
+          rating: 0,
+          reviews: 0,
+          artisanId: state.vendorProfile.id,
+          status: 'pending',
+          badge: null
+        };
+        return {
+          pendingProducts: [newProduct, ...state.pendingProducts],
+          vendorProducts: [newProduct, ...state.vendorProducts],
+          adminStats: {
+            ...state.adminStats,
+            pendingApprovals: state.adminStats.pendingApprovals + 1
+          }
+        };
+      });
+    }
+  },
 
-    const updatedProduct = {
-      ...currentProduct,
-      name: formData.name,
-      category: formData.category,
-      price: Number.isFinite(sellingPrice) ? sellingPrice : currentProduct.price,
-      mrp: Number.isFinite(mrp) ? mrp : currentProduct.mrp,
-      unit: formData.unit,
-      description: formData.description,
-      stock: Number.isFinite(stock) ? stock : currentProduct.stock,
-      tags: Array.isArray(formData.tags)
-        ? formData.tags
-        : formData.tags
-          ? formData.tags.split(',').map((t) => t.trim()).filter(Boolean)
-          : [],
-      image: formData.image || currentProduct.image || null,
-      certifications: formData.certifications || currentProduct.certifications || {},
-    };
+  removeVendorProduct: async (productId) => {
+    try {
+      if (String(productId).startsWith('pending_')) {
+        set((state) => ({
+          pendingProducts: state.pendingProducts.filter((p) => p.id !== productId)
+        }));
+        return;
+      }
+      const response = await fetch(`${API_BASE}/products/${productId}`, {
+        method: 'DELETE'
+      });
+      if (response.ok) {
+        await get().fetchVendorProducts(get().vendorProfile.id);
+        await get().fetchProducts();
+      }
+    } catch (error) {
+      console.error('Error deleting product:', error);
+      set((state) => ({
+        vendorProducts: state.vendorProducts.filter((p) => p.id !== productId)
+      }));
+    }
+  },
 
-    return {
-      vendorProducts: state.vendorProducts.map((p) => (p.id === productId ? updatedProduct : p)),
-      products: state.products.map((p) => (p.id === productId ? updatedProduct : p)),
-    };
-  }),
+  updateVendorProduct: async (productId, formData) => {
+    try {
+      if (String(productId).startsWith('pending_')) {
+        set((state) => {
+          const currentProduct = state.vendorProducts.find((p) => p.id === productId);
+          if (!currentProduct) return {};
+          const updatedProduct = {
+            ...currentProduct,
+            name: formData.name,
+            category: formData.category,
+            price: Number(formData.price) || currentProduct.price,
+            mrp: Number(formData.mrp) || Number(formData.price) || currentProduct.mrp,
+            unit: formData.unit,
+            description: formData.description,
+            stock: Number(formData.stock) || currentProduct.stock,
+            tags: formData.tags ? formData.tags.split(',') : [],
+            image: formData.image || currentProduct.image || null,
+          };
+          return {
+            vendorProducts: state.vendorProducts.map((p) => (p.id === productId ? updatedProduct : p))
+          };
+        });
+        return;
+      }
 
-  // Admin
-  approveProduct: (productId) => set((state) => {
-    const product = state.pendingProducts.find((p) => p.id === productId);
-    if (!product) return { pendingProducts: state.pendingProducts.filter((p) => p.id !== productId) };
-    const { status, ...liveProduct } = product;
-    return {
-      pendingProducts: state.pendingProducts.filter((p) => p.id !== productId),
-      products: [liveProduct, ...state.products],
-      vendorProducts: [liveProduct, ...state.vendorProducts],
-      adminStats: { ...state.adminStats, productsListed: state.adminStats.productsListed + 1, pendingApprovals: Math.max(0, state.adminStats.pendingApprovals - 1) }
-    };
-  }),
-  rejectProduct: (productId) => set((state) => ({
-    pendingProducts: state.pendingProducts.filter((p) => p.id !== productId),
-    adminStats: { ...state.adminStats, pendingApprovals: Math.max(0, state.adminStats.pendingApprovals - 1) }
-  })),
+      const response = await fetch(`${API_BASE}/products/${productId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: formData.name,
+          category: formData.category,
+          price: Number(formData.price),
+          mrp: Number(formData.mrp) || Number(formData.price),
+          unit: formData.unit,
+          description: formData.description,
+          stock: Number(formData.stock),
+          tags: Array.isArray(formData.tags)
+            ? formData.tags
+            : formData.tags
+              ? formData.tags.split(',').map((t) => t.trim()).filter(Boolean)
+              : [],
+          image: formData.image || null,
+          certifications: formData.certifications || {}
+        })
+      });
+      if (response.ok) {
+        await get().fetchVendorProducts(get().vendorProfile.id);
+        await get().fetchProducts();
+        await get().fetchPendingProducts();
+      }
+    } catch (error) {
+      console.error('Error updating product:', error);
+    }
+  },
+
+  approveProduct: async (productId) => {
+    try {
+      if (String(productId).startsWith('pending_')) {
+        set((state) => {
+          const product = state.pendingProducts.find((p) => p.id === productId);
+          if (!product) return {};
+          const { status, ...liveProduct } = product;
+          return {
+            pendingProducts: state.pendingProducts.filter((p) => p.id !== productId),
+            products: [liveProduct, ...state.products],
+            vendorProducts: [liveProduct, ...state.vendorProducts],
+            adminStats: { ...state.adminStats, productsListed: state.adminStats.productsListed + 1, pendingApprovals: Math.max(0, state.adminStats.pendingApprovals - 1) }
+          };
+        });
+        return;
+      }
+
+      const response = await fetch(`${API_BASE}/products/${productId}/approve`, {
+        method: 'PUT'
+      });
+      if (response.ok) {
+        await get().fetchPendingProducts();
+        await get().fetchProducts();
+        if (get().vendorProfile && get().vendorProfile.id) {
+          await get().fetchVendorProducts(get().vendorProfile.id);
+        }
+      }
+    } catch (error) {
+      console.error('Error approving product:', error);
+      // Fallback
+      set((state) => {
+        const product = state.pendingProducts.find((p) => p.id === productId);
+        if (!product) return {};
+        const updatedProduct = { ...product, status: 'APPROVED' };
+        return {
+          pendingProducts: state.pendingProducts.filter((p) => p.id !== productId),
+          products: [updatedProduct, ...state.products],
+          vendorProducts: state.vendorProducts.map((p) => p.id === productId ? updatedProduct : p),
+          adminStats: { ...state.adminStats, productsListed: state.adminStats.productsListed + 1, pendingApprovals: Math.max(0, state.adminStats.pendingApprovals - 1) }
+        };
+      });
+    }
+  },
+
+  rejectProduct: async (productId) => {
+    try {
+      if (String(productId).startsWith('pending_')) {
+        set((state) => ({
+          pendingProducts: state.pendingProducts.filter((p) => p.id !== productId),
+          vendorProducts: state.vendorProducts.map((p) => p.id === productId ? { ...p, status: 'REJECTED' } : p),
+          adminStats: { ...state.adminStats, pendingApprovals: Math.max(0, state.adminStats.pendingApprovals - 1) }
+        }));
+        return;
+      }
+
+      const response = await fetch(`${API_BASE}/products/${productId}/reject`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason: 'Rejected by admin' })
+      });
+      if (response.ok) {
+        await get().fetchPendingProducts();
+        await get().fetchProducts();
+        if (get().vendorProfile && get().vendorProfile.id) {
+          await get().fetchVendorProducts(get().vendorProfile.id);
+        }
+      }
+    } catch (error) {
+      console.error('Error rejecting product:', error);
+      // Fallback
+      set((state) => ({
+        pendingProducts: state.pendingProducts.filter((p) => p.id !== productId),
+        vendorProducts: state.vendorProducts.map((p) => p.id === productId ? { ...p, status: 'REJECTED' } : p),
+        adminStats: { ...state.adminStats, pendingApprovals: Math.max(0, state.adminStats.pendingApprovals - 1) }
+      }));
+    }
+  },
 
   // Notifications
   markNotificationRead: (id) => set((state) => ({

@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import {
-  View, StyleSheet, ScrollView, TouchableOpacity, FlatList } from
-'react-native';
+  View, StyleSheet, ScrollView, TouchableOpacity, FlatList
+} from
+  'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS, SHADOWS } from '../../theme/colors';
 
-import useStore from '../../store/useStore';import Text from "../../autoTranslation/AutoText";import useAppLanguage from "../../autoTranslation/useAppLanguage";
+import useStore from '../../store/useStore'; import Text from "../../autoTranslation/AutoText"; import useAppLanguage from "../../autoTranslation/useAppLanguage";
 
 const STATUS_META = {
   confirmed: { color: COLORS.info, bg: COLORS.info + '20', emoji: '✅', label: 'New Order' },
@@ -31,12 +32,13 @@ const SHG_ACTION_LABEL = {
 };
 
 const TABS = [
-{ key: 'active', label: "Active" },
-{ key: 'delivered', label: "Delivered" },
-{ key: 'all', label: "My Orders" }];
+  { key: 'active', label: "Active" },
+  { key: 'delivered', label: "Delivered" },
+  { key: 'all', label: "My Orders" }];
 
 
-export default function VendorOrdersScreen({ navigation }) {const lang = useAppLanguage();
+export default function VendorOrdersScreen({ navigation }) {
+  const lang = useAppLanguage();
 
   const { vendorOrders, updateOrderStatus, shgSendToLogistics } = useStore();
   const [tab, setTab] = useState('active');
@@ -46,9 +48,9 @@ export default function VendorOrdersScreen({ navigation }) {const lang = useAppL
   const deliveredOrders = vendorOrders.filter((o) => o.status === 'delivered');
 
   const displayed =
-  tab === 'active' ? activeOrders :
-  tab === 'delivered' ? deliveredOrders :
-  vendorOrders;
+    tab === 'active' ? activeOrders :
+      tab === 'delivered' ? deliveredOrders :
+        vendorOrders;
 
   const doUpdate = () => {
     if (!confirm) return;
@@ -97,12 +99,12 @@ export default function VendorOrdersScreen({ navigation }) {const lang = useAppL
         <View style={[styles.payChip, { backgroundColor: pm.bg }]}>
           <Text style={[styles.payText, { color: pm.color }]}>{pm.label}</Text>
           {item.paymentStatus === 'pending_payment' &&
-          <Text style={[styles.payHint, { color: pm.color }]}>  → Request payout in {"Pending Payout"}</Text>
+            <Text style={[styles.payHint, { color: pm.color }]}>  → Request payout in {"Pending Payout"}</Text>
           }
         </View>
 
         {isWithLogistics &&
-        <View style={styles.logisticsBanner}>
+          <View style={styles.logisticsBanner}>
             <Text style={styles.logisticsEmoji}>🏭</Text>
             <Text style={styles.logisticsText}>
               Handed to IS&SF {"Logistics"} team at Sandeshkhali Warehouse. They will ship and deliver this order.
@@ -111,7 +113,7 @@ export default function VendorOrdersScreen({ navigation }) {const lang = useAppL
         }
 
         {item.tracking &&
-        <View style={styles.trackingBanner}>
+          <View style={styles.trackingBanner}>
             <Text style={styles.trackingText}>🚦 {item.tracking}</Text>
           </View>
         }
@@ -119,10 +121,10 @@ export default function VendorOrdersScreen({ navigation }) {const lang = useAppL
         <Text style={styles.viewDetailsText}>{"Open Details →"}</Text>
 
         {nextAction &&
-        <TouchableOpacity
-          style={[styles.actionBtn, nextAction === 'send_to_logistics' && styles.actionBtnLogistics]}
-          onPress={() => setConfirm({ order: item, action: nextAction })}>
-          
+          <TouchableOpacity
+            style={[styles.actionBtn, nextAction === 'send_to_logistics' && styles.actionBtnLogistics]}
+            onPress={() => setConfirm({ order: item, action: nextAction })}>
+
             <Text style={[styles.actionBtnText, nextAction === 'send_to_logistics' && styles.actionBtnTextLogistics]}>
               {SHG_ACTION_LABEL[item.status]}
             </Text>
@@ -144,29 +146,29 @@ export default function VendorOrdersScreen({ navigation }) {const lang = useAppL
 
       <View style={styles.pipeline}>
         {[
-        { key: 'confirmed', emoji: '✅', color: COLORS.info },
-        { key: 'packed', emoji: '📦', color: COLORS.teal },
-        { key: 'sent_to_logistics', emoji: '🏭', color: COLORS.warning },
-        { key: 'shipped', emoji: '🚚', color: COLORS.green },
-        { key: 'delivered', emoji: '🎉', color: COLORS.success }].
-        map((s, i) =>
-        <React.Fragment key={s.key}>
-            <View style={styles.pipeItem}>
-              <View style={[styles.pipeCircle, counts[s.key] > 0 && { borderColor: s.color }]}>
-                <Text style={styles.pipeEmoji}>{s.emoji}</Text>
-                {counts[s.key] > 0 &&
-              <View style={[styles.pipeBadge, { backgroundColor: s.color }]}>
-                    <Text style={styles.pipeBadgeText}>{counts[s.key]}</Text>
-                  </View>
-              }
+          { key: 'confirmed', emoji: '✅', color: COLORS.info },
+          { key: 'packed', emoji: '📦', color: COLORS.teal },
+          { key: 'sent_to_logistics', emoji: '🏭', color: COLORS.warning },
+          { key: 'shipped', emoji: '🚚', color: COLORS.green },
+          { key: 'delivered', emoji: '🎉', color: COLORS.success }].
+          map((s, i) =>
+            <React.Fragment key={s.key}>
+              <View style={styles.pipeItem}>
+                <View style={[styles.pipeCircle, counts[s.key] > 0 && { borderColor: s.color }]}>
+                  <Text style={styles.pipeEmoji}>{s.emoji}</Text>
+                  {counts[s.key] > 0 &&
+                    <View style={[styles.pipeBadge, { backgroundColor: s.color }]}>
+                      <Text style={styles.pipeBadgeText}>{counts[s.key]}</Text>
+                    </View>
+                  }
+                </View>
+                <Text style={[styles.pipeLabel, counts[s.key] > 0 && { color: s.color }]}>
+                  {s.key === 'sent_to_logistics' ? "Logistics" : s.key.charAt(0).toUpperCase() + s.key.slice(1)}
+                </Text>
               </View>
-              <Text style={[styles.pipeLabel, counts[s.key] > 0 && { color: s.color }]}>
-                {s.key === 'sent_to_logistics' ? "Logistics" : s.key.charAt(0).toUpperCase() + s.key.slice(1)}
-              </Text>
-            </View>
-            {i < 4 && <View style={styles.pipeLine} />}
-          </React.Fragment>
-        )}
+              {i < 4 && <View style={styles.pipeLine} />}
+            </React.Fragment>
+          )}
       </View>
 
       <View style={styles.flowInfo}>
@@ -175,11 +177,11 @@ export default function VendorOrdersScreen({ navigation }) {const lang = useAppL
 
       <View style={styles.tabs}>
         {TABS.map((tabItem) =>
-        <TouchableOpacity
-          key={tabItem.key}
-          onPress={() => setTab(tabItem.key)}
-          style={[styles.tab, tab === tabItem.key && styles.tabActive]}>
-          
+          <TouchableOpacity
+            key={tabItem.key}
+            onPress={() => setTab(tabItem.key)}
+            style={[styles.tab, tab === tabItem.key && styles.tabActive]}>
+
             <Text style={[styles.tabText, tab === tabItem.key && styles.tabTextActive]}>
               {tabItem.label}
               {tabItem.key === 'active' ? ` (${activeOrders.length})` : ''}
@@ -191,27 +193,27 @@ export default function VendorOrdersScreen({ navigation }) {const lang = useAppL
       </View>
 
       {displayed.length === 0 ?
-      <View style={styles.empty}>
+        <View style={styles.empty}>
           <Text style={styles.emptyEmoji}>{tab === 'active' ? '🎉' : '📭'}</Text>
           <Text style={styles.emptyTitle}>
             {tab === 'active' ? "No active orders right now!" : "No orders here"}
           </Text>
           {tab === 'active' &&
-        <Text style={styles.emptySubtitle}>{"New orders will appear here when customers shop"}</Text>
-        }
+            <Text style={styles.emptySubtitle}>{"New orders will appear here when customers shop"}</Text>
+          }
         </View> :
 
-      <FlatList
-        data={displayed}
-        keyExtractor={(item) => item.id}
-        renderItem={renderOrder}
-        contentContainerStyle={styles.list}
-        showsVerticalScrollIndicator={false} />
+        <FlatList
+          data={displayed}
+          keyExtractor={(item) => item.id}
+          renderItem={renderOrder}
+          contentContainerStyle={styles.list}
+          showsVerticalScrollIndicator={false} />
 
       }
 
       {confirm &&
-      <View style={styles.overlay}>
+        <View style={styles.overlay}>
           <View style={styles.confirmBox}>
             <Text style={styles.confirmEmoji}>
               {confirm.action === 'send_to_logistics' ? '🚚' : '📦'}
@@ -222,17 +224,17 @@ export default function VendorOrdersScreen({ navigation }) {const lang = useAppL
               <Text style={{ fontWeight: '800', color: COLORS.textPrimary }}>{confirm.order.buyer}</Text>
               {'\n\n'}
               {confirm.action === 'send_to_logistics' ?
-            'This will hand the order to IS&SF Logistics at Sandeshkhali Warehouse. They will dispatch and deliver it to the customer.' :
-            'Status → "Packed". Consumer will be notified that their order is being prepared.'}
+                'This will hand the order to IS&SF Logistics at Sandeshkhali Warehouse. They will dispatch and deliver it to the customer.' :
+                'Status → "Packed". Consumer will be notified that their order is being prepared.'}
             </Text>
             <View style={styles.confirmBtns}>
               <TouchableOpacity onPress={() => setConfirm(null)} style={styles.cancelBtn}>
                 <Text style={styles.cancelText}>{"Cancel"}</Text>
               </TouchableOpacity>
               <TouchableOpacity onPress={doUpdate} style={[
-            styles.confirmDoBtn,
-            confirm.action === 'send_to_logistics' && { backgroundColor: COLORS.warning }]
-            }>
+                styles.confirmDoBtn,
+                confirm.action === 'send_to_logistics' && { backgroundColor: COLORS.warning }]
+              }>
                 <Text style={styles.confirmDoText}>{"Confirm"}</Text>
               </TouchableOpacity>
             </View>

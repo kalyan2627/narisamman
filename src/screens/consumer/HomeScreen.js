@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
   View,
   StyleSheet,
@@ -178,7 +178,16 @@ export default function HomeScreen({ navigation }) {
     toggleWishlist,
     isWishlisted,
     getUnreadCount,
+    fetchProducts,
   } = useStore();
+
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      fetchProducts();
+    });
+    fetchProducts();
+    return unsubscribe;
+  }, [navigation]);
 
   const lang = useAppLanguage();
 
