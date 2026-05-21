@@ -429,30 +429,6 @@ const useStore = create((set, get) => ({
       }
       return { currentRole: role, isLoggedIn: true, ...tokenState };
     });
-  // Called from login screens — sets role + updates profile with credentials
-  loginUser: (role, credentials) => {
-    set((state) => {
-      if (role === 'consumer') {
-        return {
-          currentRole: 'consumer',
-          isLoggedIn: true,
-          user: { ...state.user, email: credentials.email || state.user.email }
-        };
-      } else if (role === 'vendor') {
-        return {
-          currentRole: 'vendor',
-          isLoggedIn: true,
-          vendorProfile: { ...state.vendorProfile, email: credentials.email || state.vendorProfile.email }
-        };
-      } else if (role === 'admin') {
-        return {
-          currentRole: 'admin',
-          isLoggedIn: true,
-          adminProfile: { ...state.adminProfile, email: credentials.email || state.adminProfile.email }
-        };
-      }
-      return { currentRole: role, isLoggedIn: true };
-    });
 
     // Trigger API fetching asynchronously
     const store = get();

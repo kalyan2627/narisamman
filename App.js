@@ -1,8 +1,6 @@
 // App.js – Root component with web‑specific fixed positioning
 import 'react-native-gesture-handler';
 import React, { useEffect } from 'react';
-import { Platform } from 'react-native';
-import React from 'react';
 import { View, Platform, StyleSheet } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
@@ -49,12 +47,6 @@ export default function App() {
   }, []);
 
   return (
-    <NavigationContainer ref={navigationRef}>
-      <StatusBar style="light" />
-      <RootNavigator />
-    </NavigationContainer>
-  );
-}
     <View style={[styles.root, WEB_ROOT_STYLE]}>
       <NavigationContainer ref={navigationRef}>
         <StatusBar style="light" />
