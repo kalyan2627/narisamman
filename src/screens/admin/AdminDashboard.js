@@ -7,7 +7,13 @@ import { imgSrc } from '../../utils/imageSource';
 import Text from "../../autoTranslation/AutoText";import useAppLanguage from "../../autoTranslation/useAppLanguage";
 
 
-const { width } = Dimensions.get('window');
+const { width = 375 } = (() => {
+  try {
+    return Dimensions.get('window') || {};
+  } catch (e) {
+    return {};
+  }
+})();
 
 export default function AdminDashboard({ navigation }) {
   const { adminStats, pendingProducts, allVendors, payoutRequests, getTotalOrders, pendingSHGRegistrations } = useStore();const lang = useAppLanguage();

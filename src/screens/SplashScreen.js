@@ -1,14 +1,12 @@
 import React, { useEffect, useRef } from 'react';
-import { View, StyleSheet, Animated, Dimensions } from 'react-native';
+import { View, StyleSheet, Animated, useWindowDimensions } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { CommonActions } from '@react-navigation/native';
 import { COLORS } from '../theme/colors';import Text from "../autoTranslation/AutoText";import useAppLanguage from "../autoTranslation/useAppLanguage";
 import NariLogoIcon from '../components/NariLogoIcon';
 
-
-const { width, height } = Dimensions.get('window');
-
 export default function SplashScreen({ navigation }) {const lang = useAppLanguage();
+  const { width } = useWindowDimensions();
 
   const logoScale = useRef(new Animated.Value(0.3)).current;
   const logoOpacity = useRef(new Animated.Value(0)).current;
@@ -35,11 +33,29 @@ export default function SplashScreen({ navigation }) {const lang = useAppLanguag
     return () => clearTimeout(timer);
   }, []);
 
+  const ring1Style = {
+    position: 'absolute',
+    width: width * 0.9,
+    height: width * 0.9,
+    borderRadius: width * 0.45,
+    borderWidth: 1,
+    borderColor: 'rgba(245, 166, 35, 0.15)'
+  };
+
+  const ring2Style = {
+    position: 'absolute',
+    width: width * 0.7,
+    height: width * 0.7,
+    borderRadius: width * 0.35,
+    borderWidth: 1,
+    borderColor: 'rgba(232, 98, 42, 0.2)'
+  };
+
   return (
     <LinearGradient colors={['#0F1822', '#1C2437', '#243050']} style={styles.container}>
       {/* Decorative rings */}
-      <View style={styles.ring1} />
-      <View style={styles.ring2} />
+      <View style={ring1Style} />
+      <View style={ring2Style} />
 
       <Animated.View style={[styles.logoContainer, { opacity: logoOpacity, transform: [{ scale: logoScale }] }]}>
         <View style={styles.logoCircle}>
@@ -61,22 +77,6 @@ export default function SplashScreen({ navigation }) {const lang = useAppLanguag
 
 const styles = StyleSheet.create({
   container: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  ring1: {
-    position: 'absolute',
-    width: width * 0.9,
-    height: width * 0.9,
-    borderRadius: width * 0.45,
-    borderWidth: 1,
-    borderColor: 'rgba(245, 166, 35, 0.15)'
-  },
-  ring2: {
-    position: 'absolute',
-    width: width * 0.7,
-    height: width * 0.7,
-    borderRadius: width * 0.35,
-    borderWidth: 1,
-    borderColor: 'rgba(232, 98, 42, 0.2)'
-  },
   logoContainer: { alignItems: 'center', marginBottom: 40 },
   logoCircle: {
     width: 118, height: 118, borderRadius: 59,

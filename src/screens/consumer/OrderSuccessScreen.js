@@ -5,7 +5,13 @@ import { COLORS } from '../../theme/colors';
 
 import useStore from '../../store/useStore';import Text from "../../autoTranslation/AutoText";import useAppLanguage from "../../autoTranslation/useAppLanguage";
 
-const { width } = Dimensions.get('window');
+const { width = 375 } = (() => {
+  try {
+    return Dimensions.get('window') || {};
+  } catch (e) {
+    return {};
+  }
+})();
 
 export default function OrderSuccessScreen({ navigation }) {const lang = useAppLanguage();
 

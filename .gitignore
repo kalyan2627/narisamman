@@ -39,3 +39,13 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# repomix dump
+repomix-output.xml
+
+# env files
+.env
+.env*.local
+
+# tunnel file
+tunnel.txt

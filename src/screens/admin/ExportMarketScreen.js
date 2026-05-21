@@ -6,7 +6,13 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS, SHADOWS } from '../../theme/colors';import Text from "../../autoTranslation/AutoText";import TextInput from "../../autoTranslation/AutoTextInput";import useAppLanguage from "../../autoTranslation/useAppLanguage";
 
-const { width } = Dimensions.get('window');
+const { width = 375 } = (() => {
+  try {
+    return Dimensions.get('window') || {};
+  } catch (e) {
+    return {};
+  }
+})();
 
 const EXPORT_MARKETS = [
 { id: 'ex1', country: 'United States', flag: '🇺🇸', currency: 'USD', exchangeRate: 83.5, status: 'active', targetSegment: 'Bengali NRI Community', cities: ['New York', 'New Jersey', 'Chicago', 'San Jose'], monthlyRevenue: 124000, ordersThisMonth: 34, avgOrderValue: 3647, topProducts: ['Baluchari Silk Saree', 'Jamdani Saree', 'Sundarbans Honey'], shippingPartner: 'FedEx International', avgDeliveryDays: 7, notes: 'Largest Bengali diaspora outside India. High demand for Durga Puja and wedding season.' },

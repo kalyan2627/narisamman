@@ -242,7 +242,13 @@ import { LinearGradient } from "expo-linear-gradient";
 import { CommonActions } from "@react-navigation/native";
 import { COLORS } from "../theme/colors";
 
-const { width, height } = Dimensions.get("window");
+const { width = 375, height = 812 } = (() => {
+  try {
+    return Dimensions.get("window") || {};
+  } catch (e) {
+    return {};
+  }
+})();
 const isSmall = height < 700;
 const onboardingImageHeight = Math.min(width - 40, isSmall ? height * 0.35 : height * 0.42);
 

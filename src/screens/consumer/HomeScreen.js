@@ -21,7 +21,13 @@ import useAppLanguage from "../../autoTranslation/useAppLanguage";
 import { CATEGORY_LABELS } from "../../autoTranslation/staticLabels";
 import NariLogoIcon from "../../components/NariLogoIcon";
 
-const { width } = Dimensions.get("window");
+const { width = 375 } = (() => {
+  try {
+    return Dimensions.get("window") || {};
+  } catch (e) {
+    return {};
+  }
+})();
 
 const CATEGORY_IDS = ["all", "food", "textiles", "crafts"];
 const CAT_EMOJIS = { all: "✨", food: "🍯", textiles: "🧵", crafts: "🏺" };

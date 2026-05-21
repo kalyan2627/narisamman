@@ -13,12 +13,18 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { CommonActions } from '@react-navigation/native';
 import { COLORS } from '../theme/colors';
 import useStore from '../store/useStore';
+import { publicFetch } from '../utils/api';
 import Text from '../autoTranslation/AutoText';
 import TextInput from '../autoTranslation/AutoTextInput';
 import NariLogoIcon from '../components/NariLogoIcon';
 
-const { width } = Dimensions.get('window');
-const DUMMY_OTP = '123456';
+const { width = 375 } = (() => {
+  try {
+    return Dimensions.get('window') || {};
+  } catch (e) {
+    return {};
+  }
+})();
 
 function cleanMobile(value) {
   return String(value || '').replace(/\D/g, '').slice(0, 10);
@@ -66,6 +72,17 @@ function Field({
   );
 }
 
+const KeyboardAvoidingWrapper = ({ children }) => {
+  if (Platform.OS === 'web') {
+    return <View style={{ flex: 1 }}>{children}</View>;
+  }
+  return (
+    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+      {children}
+    </KeyboardAvoidingView>
+  );
+};
+
 export default function ConsumerLoginScreen({ navigation }) {
   const [mode, setMode] = useState('login');
   const [form, setForm] = useState({ name: '', email: '', phone: '', password: '', confirm: '' });
@@ -76,10 +93,10 @@ export default function ConsumerLoginScreen({ navigation }) {
   const [otpInput, setOtpInput] = useState('');
   const [phoneVerified, setPhoneVerified] = useState(false);
   const [otpMessage, setOtpMessage] = useState('');
+  const [loading, setLoading] = useState(false);
   const slideAnim = useRef(new Animated.Value(0)).current;
 
   const loginUser = useStore((s) => s.loginUser);
-  const registerUser = useStore((s) => s.registerUser);
 
   const resetOtp = () => {
     setOtpSent(false);
@@ -108,49 +125,149 @@ export default function ConsumerLoginScreen({ navigation }) {
     resetOtp();
   };
 
-  const sendOtp = () => {
+  const sendOtp = async () => {
     if (!/^\d{10}$/.test(form.phone)) {
       setErrors((e) => ({ ...e, phone: 'Enter exactly 10 digit mobile number' }));
       return;
     }
-    setOtpSent(true);
-    setPhoneVerified(false);
-    setOtpInput('');
-    setErrors((e) => ({ ...e, phone: null, otp: null }));
-    setOtpMessage(`Dummy OTP sent to +91 ${form.phone}. Use ${DUMMY_OTP}`);
+    try {
+      const res = await publicFetch('/api/consumer/send-otp', {
+        method: 'POST',
+        body: JSON.stringify({ mobileNumber: form.phone })
+      });
+      const data = await res.json();
+      if (res.status === 200) {
+        setOtpSent(true);
+        setPhoneVerified(false);
+        setOtpInput('');
+        setErrors((e) => ({ ...e, phone: null, otp: null }));
+        setOtpMessage(`OTP sent to +91 ${form.phone}`);
+      } else {
+        alert(data.message || 'Failed to send OTP');
+      }
+    } catch (error) {
+      alert('Network error details: ' + (error.message || error));
+    }
   };
 
-  const verifyOtp = () => {
-    if (otpInput === DUMMY_OTP) {
-      setPhoneVerified(true);
-      setErrors((e) => ({ ...e, otp: null, phone: null }));
-      setOtpMessage('Mobile number verified successfully');
-      return;
+  const verifyOtp = async () => {
+    try {
+      const res = await publicFetch('/api/consumer/verify-otp', {
+        method: 'POST',
+        body: JSON.stringify({ mobileNumber: form.phone, otp: otpInput })
+      });
+      const data = await res.json();
+      if (res.status === 200) {
+        setPhoneVerified(true);
+        setErrors((e) => ({ ...e, otp: null, phone: null }));
+        setOtpMessage('Mobile number verified successfully');
+      } else {
+        setPhoneVerified(false);
+        setErrors((e) => ({ ...e, otp: data.message || 'Invalid OTP' }));
+      }
+    } catch (error) {
+      alert('Network error details: ' + (error.message || error));
     }
-    setPhoneVerified(false);
-    setErrors((e) => ({ ...e, otp: 'Invalid OTP. Use 123456 for demo verification' }));
   };
 
   const validate = () => {
     const e = {};
     if (mode === 'register' && !form.name.trim()) e.name = 'Full Name is required';
-    if (!form.email.trim() || !/\S+@\S+\.\S+/.test(form.email)) e.email = 'Valid email required';
+    if (mode !== 'forgot' && (!form.email.trim() || !/\S+@\S+\.\S+/.test(form.email))) e.email = 'Valid email required';
+    if (mode === 'forgot' && !form.email.trim()) e.email = 'Email required';
     if (mode === 'register' && !/^\d{10}$/.test(form.phone)) e.phone = 'Enter exactly 10 digit mobile number';
     if (mode === 'register' && !phoneVerified) e.otp = 'Please verify mobile number with OTP';
-    if (!form.password || form.password.length < 6) e.password = 'Password must be at least 6 characters';
+    if (mode !== 'forgot' && (!form.password || form.password.length < 6)) e.password = 'Password must be at least 6 characters';
     if (mode === 'register' && form.password !== form.confirm) e.confirm = 'Passwords do not match';
     setErrors(e);
     return Object.keys(e).length === 0;
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!validate()) return;
-    if (mode === 'login') {
-      loginUser('consumer', { email: form.email });
-    } else {
-      registerUser('consumer', { name: form.name, email: form.email, phone: form.phone, mobileVerified: true });
+    
+    setLoading(true);
+    try {
+      if (mode === 'login') {
+        const res = await publicFetch('/api/consumer/login', {
+          method: 'POST',
+          body: JSON.stringify({ email: form.email, password: form.password })
+        });
+        const data = await res.json();
+        setLoading(false);
+        if (res.status === 200 && data.token) {
+          loginUser('consumer', {
+            id: data.id,
+            email: data.email || form.email,
+            fullName: data.fullName || '',
+            mobileNumber: data.mobileNumber || ''
+          }, data.token);
+          navigation.dispatch(CommonActions.reset({ index: 0, routes: [{ name: 'ConsumerTabs' }] }));
+        } else {
+          alert(data.message || 'Login failed');
+        }
+      } else if (mode === 'register') {
+        const res = await publicFetch('/api/consumer/register', {
+          method: 'POST',
+          body: JSON.stringify({ fullName: form.name, email: form.email, mobileNumber: form.phone, password: form.password })
+        });
+        const data = await res.json();
+        setLoading(false);
+        if (res.status === 200) {
+          alert('Registration successful! Please sign in with your email and password.');
+          const registeredEmail = form.email;
+          switchMode('login');
+          setForm({ name: '', email: registeredEmail, phone: '', password: '', confirm: '' });
+        } else {
+          alert(data.message || 'Registration failed');
+        }
+      } else if (mode === 'forgot') {
+         if (phoneVerified) { // used phoneVerified as otpVerified for forgot mode
+            const res = await publicFetch('/api/consumer/reset-password', {
+              method: 'POST',
+              body: JSON.stringify({ email: form.email, otp: otpInput, newPassword: form.password })
+            });
+            const data = await res.json();
+            setLoading(false);
+            if (res.status === 200) {
+               alert('Password reset successfully. Please login.');
+               switchMode('login');
+            } else {
+               alert(data.message || 'Failed to reset password');
+            }
+         } else {
+           setLoading(false);
+           alert('Please verify the Email OTP first');
+         }
+      }
+    } catch (error) {
+      setLoading(false);
+      alert('Network error details: ' + (error.message || error));
     }
-    navigation.dispatch(CommonActions.reset({ index: 0, routes: [{ name: 'ConsumerTabs' }] }));
+  };
+
+  const sendForgotOtp = async () => {
+    if (!form.email.trim()) {
+       setErrors((e) => ({ ...e, email: 'Enter registered email' }));
+       return;
+    }
+    try {
+       const res = await publicFetch('/api/consumer/forgot-password', {
+         method: 'POST',
+         body: JSON.stringify({ email: form.email })
+       });
+       const data = await res.json();
+       if (res.status === 200) {
+         setOtpSent(true);
+         setPhoneVerified(false);
+         setOtpInput('');
+         setOtpMessage('Reset OTP sent to your email.');
+       } else {
+         alert(data.message || 'Failed to send reset email');
+       }
+    } catch (error) {
+       alert('Network error details: ' + (error.message || error));
+    }
   };
 
   const otpButton = phoneVerified ? (
@@ -165,7 +282,7 @@ export default function ConsumerLoginScreen({ navigation }) {
 
   return (
     <LinearGradient colors={['#0F1822', '#1C2437', '#0F1822']} style={styles.container}>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+      <KeyboardAvoidingWrapper>
         <ScrollView
           contentContainerStyle={styles.scroll}
           showsVerticalScrollIndicator={false}
@@ -184,9 +301,9 @@ export default function ConsumerLoginScreen({ navigation }) {
               <NariLogoIcon size={35} />
               <Text style={{...styles.appName, marginBottom: 0}}>Nari Samman</Text>
             </View>
-            <Text style={styles.title}>{mode === 'login' ? 'Welcome Back!' : 'Create Account'}</Text>
+            <Text style={styles.title}>{mode === 'login' ? 'Welcome Back!' : mode === 'forgot' ? 'Reset Password' : 'Create Account'}</Text>
             <Text style={styles.subtitle}>
-              {mode === 'login' ? 'Sign in to explore authentic rural products' : 'Join thousands discovering rural artisans'}
+              {mode === 'login' ? 'Sign in to explore authentic rural products' : mode === 'forgot' ? 'Enter email to receive reset link' : 'Join thousands discovering rural artisans'}
             </Text>
           </View>
 
@@ -265,7 +382,7 @@ export default function ConsumerLoginScreen({ navigation }) {
             )}
 
             <Field
-              label="Password"
+              label={mode === 'forgot' ? "New Password" : "Password"}
               placeholder="Min. 6 characters"
               icon="🔒"
               secure
@@ -291,14 +408,41 @@ export default function ConsumerLoginScreen({ navigation }) {
             )}
 
             {mode === 'login' && (
-              <TouchableOpacity style={styles.forgotBtn}>
+              <TouchableOpacity style={styles.forgotBtn} onPress={() => switchMode('forgot')}>
                 <Text style={styles.forgotText}>Forgot Password?</Text>
               </TouchableOpacity>
             )}
 
-            <TouchableOpacity onPress={handleSubmit} activeOpacity={0.85}>
+            {mode === 'forgot' && (
+              <View style={{marginBottom: 20}}>
+                <TouchableOpacity onPress={sendForgotOtp} style={styles.otpSmallBtn}>
+                  <Text style={styles.otpSmallBtnText}>{otpSent ? 'Resend Email OTP' : 'Send Reset OTP to Email'}</Text>
+                </TouchableOpacity>
+                {otpSent && (
+                  <View style={[styles.otpBox, {marginTop: 15}]}>
+                    <Text style={styles.otpHint}>{otpMessage}</Text>
+                    <View style={styles.otpVerifyRow}>
+                      <TextInput
+                        style={styles.otpInput}
+                        placeholder="Enter Email OTP"
+                        placeholderTextColor="rgba(200,208,228,0.35)"
+                        value={otpInput}
+                        onChangeText={setOtpInput}
+                        keyboardType="number-pad"
+                        maxLength={6}
+                      />
+                      <TouchableOpacity onPress={() => setPhoneVerified(true)} style={[styles.verifyBtn, phoneVerified && {backgroundColor: COLORS.success}]}>
+                        <Text style={styles.verifyBtnText}>{phoneVerified ? 'Verified' : 'Verify'}</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                )}
+              </View>
+            )}
+
+            <TouchableOpacity onPress={handleSubmit} disabled={loading} activeOpacity={0.85}>
               <LinearGradient colors={[COLORS.primaryDark, COLORS.primary, COLORS.primaryLight]} style={styles.submitBtn} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
-                <Text style={styles.submitText}>{mode === 'login' ? 'Sign In  →' : 'Create Account  →'}</Text>
+                <Text style={styles.submitText}>{loading ? 'Processing...' : (mode === 'login' ? 'Sign In  →' : mode === 'forgot' ? 'Reset Password →' : 'Create Account  →')}</Text>
               </LinearGradient>
             </TouchableOpacity>
 
@@ -315,9 +459,9 @@ export default function ConsumerLoginScreen({ navigation }) {
           </View>
 
           <View style={styles.switchRow}>
-            <Text style={styles.switchLabel}>{mode === 'login' ? "Don't have an account? " : 'Already have an account? '}</Text>
+            <Text style={styles.switchLabel}>{mode === 'forgot' ? "Back to " : (mode === 'login' ? "Don't have an account? " : 'Already have an account? ')}</Text>
             <TouchableOpacity onPress={() => switchMode(mode === 'login' ? 'register' : 'login')}>
-              <Text style={styles.switchLink}>{mode === 'login' ? 'Register' : 'Sign In'}</Text>
+              <Text style={styles.switchLink}>{mode === 'forgot' ? 'Sign In' : (mode === 'login' ? 'Register' : 'Sign In')}</Text>
             </TouchableOpacity>
           </View>
 
@@ -333,7 +477,7 @@ export default function ConsumerLoginScreen({ navigation }) {
 
           <Text style={styles.footer}>IS&SF Initiative · Empowering Rural West Bengal</Text>
         </ScrollView>
-      </KeyboardAvoidingView>
+      </KeyboardAvoidingWrapper>
     </LinearGradient>
   );
 }

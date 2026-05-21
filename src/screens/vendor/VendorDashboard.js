@@ -103,6 +103,11 @@ export default function VendorDashboard({ navigation }) {
         </View>
 
         <View style={styles.statusRow}>
+          {vendorProfile.status === 'APPROVED' && (
+            <View style={[styles.statusChip, { backgroundColor: COLORS.success + '25' }]}>
+              <Text style={[styles.statusChipText, { color: COLORS.mint }]}>✓ Approved</Text>
+            </View>
+          )}
           <View style={[styles.statusChip, { backgroundColor: COLORS.success + '25' }]}>
             <Text style={[styles.statusChipText, { color: COLORS.mint }]}>✓ KYC {"Verified"}</Text>
           </View>
